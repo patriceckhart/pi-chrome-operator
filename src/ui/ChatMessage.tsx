@@ -44,15 +44,30 @@ export function ChatMessage({ message }: { message: ChatMessageType }) {
           isSystem && "bg-muted/50 text-muted-foreground text-xs italic"
         )}
       >
+        {/* Images */}
+        {message.images && message.images.length > 0 && (
+          <div className={cn("flex flex-wrap gap-1.5", message.content && "mb-2")}>
+            {message.images.map((img) => (
+              <img
+                key={img.id}
+                src={img.preview}
+                alt={img.name ?? "image"}
+                className="max-w-[200px] max-h-[160px] rounded-lg object-cover border border-white/10"
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Text */}
         {message.streaming && !message.content ? (
           <span className="inline-flex gap-1">
             <span className="animate-bounce" style={{ animationDelay: "0ms" }}>●</span>
             <span className="animate-bounce" style={{ animationDelay: "150ms" }}>●</span>
             <span className="animate-bounce" style={{ animationDelay: "300ms" }}>●</span>
           </span>
-        ) : (
+        ) : message.content ? (
           <div className="whitespace-pre-wrap break-words">{message.content}</div>
-        )}
+        ) : null}
       </div>
     </div>
   )

@@ -9,11 +9,21 @@ export type BrowserAction =
   | { type: "extract"; selector?: string; description?: string }
   | { type: "screenshot" }
 
+// ── Image attachment ────────────────────────────────────────────────────────
+export type ImageAttachment = {
+  id: string
+  data: string       // base64
+  mimeType: string   // image/png, image/jpeg, etc.
+  name?: string
+  preview: string    // data URL for display
+}
+
 // ── Chat messages (UI state) ────────────────────────────────────────────────
 export type ChatMessage = {
   id: string
   role: "user" | "assistant" | "system" | "tool" | "status"
   content: string
+  images?: ImageAttachment[]
   timestamp: number
   streaming?: boolean
 }

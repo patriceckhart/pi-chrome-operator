@@ -13,7 +13,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import type { Settings, DEFAULT_SETTINGS } from "@/types"
+import type { ImageAttachment } from "@/types"
 
 type PiEvent = Record<string, unknown> & { type: string }
 type EventListener = (event: PiEvent) => void
@@ -84,8 +84,17 @@ export function usePiBridge(bridgeUrl: string) {
   }, [])
 
   const prompt = useCallback(
-    (message: string, opts?: { streamingBehavior?: "steer" | "followUp" }) => {
-      send({ type: "prompt", message, ...opts })
+    (message: string, opts?: { streamingBehavior?: "steer" | "followUp"; images?: ImageAttachment[] }) => {
+      const { images, ...rest } = opts ?? {}
+      const cmd: Record<string, unknown> = { type: "prompt", message, ...rest }
+      if (images?.length) {
+        cmd.images = images.map((img) => ({
+          type: "image",
+          data: img.data,
+          mimeType: img.mimeType,
+        }))
+      }
+      send(cmd)
     },
     [send]
   )

@@ -8,6 +8,8 @@ import {
   Wifi,
   WifiOff,
   Eye,
+  ImagePlus,
+  X,
 } from "lucide-react"
 import { PiLogo } from "@/components/PiLogo"
 import { Button } from "@/components/ui/button"
@@ -20,7 +22,7 @@ import { SettingsPanel } from "./SettingsPanel"
 import { usePiBridge } from "@/hooks/usePiBridge"
 import { useRoutines } from "@/hooks/useRoutines"
 import { useSettings } from "@/hooks/useSettings"
-import type { ChatMessage as ChatMessageType, BrowserAction } from "@/types"
+import type { ChatMessage as ChatMessageType, BrowserAction, ImageAttachment } from "@/types"
 
 type View = "chat" | "routines" | "settings"
 
@@ -32,8 +34,10 @@ export function App() {
   const [view, setView] = useState<View>("chat")
   const [messages, setMessages] = useState<ChatMessageType[]>([])
   const [input, setInput] = useState("")
+  const [pendingImages, setPendingImages] = useState<ImageAttachment[]>([])
   const [runningActions, setRunningActions] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const currentAssistantRef = useRef<string | null>(null)
   const abortActionsRef = useRef<AbortController | null>(null)
 
@@ -58,6 +62,70 @@ export function App() {
     setMessages((prev) =>
       prev.map((m) => (m.id === id ? { ...m, ...update } : m))
     )
+  }, [])
+
+  // ── Image handling ───────────────────────────────────────────────────────
+
+  const fileToAttachment = useCallback((file: File): Promise<ImageAttachment> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        const dataUrl = reader.result as string
+        // dataUrl = "data:image/png;base64,AAAA..."
+        const [header, base64] = dataUrl.split(",")
+        const mimeType = header.match(/data:(.*?);/)?.[1] ?? "image/png"
+        resolve({
+          id: crypto.randomUUID(),
+          data: base64,
+          mimeType,
+          name: file.name,
+          preview: dataUrl,
+        })
+      }
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  }, [])
+
+  const addImages = useCallback(async (files: File[]) => {
+    const imageFiles = files.filter((f) => f.type.startsWith("image/"))
+    if (imageFiles.length === 0) return
+    const attachments = await Promise.all(imageFiles.map(fileToAttachment))
+    setPendingImages((prev) => [...prev, ...attachments])
+  }, [fileToAttachment])
+
+  const removeImage = useCallback((id: string) => {
+    setPendingImages((prev) => prev.filter((img) => img.id !== id))
+  }, [])
+
+  // Handle paste (images from clipboard)
+  const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    const items = Array.from(e.clipboardData.items)
+    const imageItems = items.filter((item) => item.type.startsWith("image/"))
+    if (imageItems.length === 0) return
+
+    e.preventDefault()
+    const files = imageItems.map((item) => item.getAsFile()).filter(Boolean) as File[]
+    addImages(files)
+  }, [addImages])
+
+  // Handle file input change
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? [])
+    addImages(files)
+    // Reset input so the same file can be selected again
+    e.target.value = ""
+  }, [addImages])
+
+  // Handle drag & drop
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
+    const files = Array.from(e.dataTransfer.files)
+    addImages(files)
+  }, [addImages])
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault()
   }, [])
 
   // Get page context and include it in the prompt
@@ -91,11 +159,17 @@ export function App() {
   const handleSend = useCallback(
     async (text?: string) => {
       const msg = text ?? input.trim()
-      if (!msg) return
+      const images = [...pendingImages]
+      if (!msg && images.length === 0) return
       setInput("")
+      setPendingImages([])
 
-      // Add user message
-      addMessage({ role: "user", content: msg })
+      // Add user message (with image previews)
+      addMessage({
+        role: "user",
+        content: msg,
+        images: images.length > 0 ? images : undefined,
+      })
 
       // Get page context
       const pageCtx = await getPageContext()
@@ -124,11 +198,11 @@ If you just need to chat, answer normally without any browser-action blocks.
 
 IMPORTANT: Always look at the page context to understand what's currently on screen before deciding actions.`
 
-      const fullPrompt = `${systemPreamble}\n${pageCtx}\n\nUser: ${msg}`
+      const fullPrompt = `${systemPreamble}\n${pageCtx}\n\nUser: ${msg || "(see attached image)"}`
 
-      sendPrompt(fullPrompt)
+      sendPrompt(fullPrompt, images.length > 0 ? { images } : undefined)
     },
-    [input, addMessage, getPageContext, sendPrompt]
+    [input, pendingImages, addMessage, getPageContext, sendPrompt]
   )
 
   // Handle Pi events
@@ -427,8 +501,55 @@ IMPORTANT: Always look at the page context to understand what's currently on scr
       </ScrollArea>
 
       {/* Input */}
-      <div className="border-t px-2 py-2 bg-background">
+      <div
+        className="border-t px-2 py-2 bg-background"
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+      >
+        {/* Image preview strip */}
+        {pendingImages.length > 0 && (
+          <div className="flex gap-1.5 mb-2 flex-wrap">
+            {pendingImages.map((img) => (
+              <div key={img.id} className="relative group">
+                <img
+                  src={img.preview}
+                  alt={img.name ?? "upload"}
+                  className="h-14 w-14 rounded-lg object-cover border border-border"
+                />
+                <button
+                  onClick={() => removeImage(img.id)}
+                  className="absolute -top-1.5 -right-1.5 h-4 w-4 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <X className="h-2.5 w-2.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="flex gap-1.5">
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            multiple
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+
+          {/* Image upload button */}
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={!connected}
+            className="shrink-0 h-[38px] w-[38px]"
+            title="Upload image"
+          >
+            <ImagePlus className="h-4 w-4" />
+          </Button>
+
           <Textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -438,7 +559,8 @@ IMPORTANT: Always look at the page context to understand what's currently on scr
                 handleSend()
               }
             }}
-            placeholder={connected ? "Ask Pi anything..." : "Start bridge first..."}
+            onPaste={handlePaste}
+            placeholder={connected ? "Ask Pi anything… paste or drop images" : "Start bridge first..."}
             disabled={!connected}
             rows={1}
             className="min-h-[38px] max-h-[120px] resize-none text-sm"
@@ -451,7 +573,7 @@ IMPORTANT: Always look at the page context to understand what's currently on scr
             <Button
               size="icon"
               onClick={() => handleSend()}
-              disabled={!connected || !input.trim()}
+              disabled={!connected || (!input.trim() && pendingImages.length === 0)}
               className="shrink-0 h-[38px] w-[38px]"
             >
               <Send className="h-4 w-4" />
