@@ -1,0 +1,242 @@
+#!/usr/bin/env node
+
+/**
+ * pi-chrome CLI
+ *
+ * Usage:
+ *   pi-chrome start   — start the bridge server (background daemon)
+ *   pi-chrome stop    — stop the bridge server
+ *   pi-chrome status  — check if the bridge is running
+ *   pi-chrome logs    — tail the bridge logs
+ *   pi-chrome ext     — print path to the built Chrome extension
+ */
+
+import { spawn, execSync } from "node:child_process"
+import fs from "node:fs"
+import path from "node:path"
+import { fileURLToPath } from "node:url"
+import http from "node:http"
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const ROOT = path.resolve(__dirname, "..")
+
+const PID_DIR = path.join(process.env.HOME ?? "/tmp", ".pi-chrome")
+const PID_FILE = path.join(PID_DIR, "bridge.pid")
+const LOG_FILE = path.join(PID_DIR, "bridge.log")
+const PORT = Number(process.env.PORT ?? 9224)
+
+const command = process.argv[2]
+
+function ensureDir() {
+  if (!fs.existsSync(PID_DIR)) {
+    fs.mkdirSync(PID_DIR, { recursive: true })
+  }
+}
+
+function readPid(): number | null {
+  try {
+    const pid = parseInt(fs.readFileSync(PID_FILE, "utf-8").trim(), 10)
+    if (isNaN(pid)) return null
+    // Check if process is actually running
+    try {
+      process.kill(pid, 0)
+      return pid
+    } catch {
+      // Process not running, clean up stale PID
+      fs.unlinkSync(PID_FILE)
+      return null
+    }
+  } catch {
+    return null
+  }
+}
+
+function checkHealth(): Promise<boolean> {
+  return new Promise((resolve) => {
+    const req = http.get(`http://localhost:${PORT}`, (res) => {
+      let data = ""
+      res.on("data", (c) => (data += c))
+      res.on("end", () => {
+        try {
+          const json = JSON.parse(data)
+          resolve(json.status === "ok")
+        } catch {
+          resolve(false)
+        }
+      })
+    })
+    req.on("error", () => resolve(false))
+    req.setTimeout(2000, () => {
+      req.destroy()
+      resolve(false)
+    })
+  })
+}
+
+async function start() {
+  ensureDir()
+
+  const existing = readPid()
+  if (existing) {
+    const healthy = await checkHealth()
+    if (healthy) {
+      console.log(`✅ Bridge already running (PID ${existing}) on ws://localhost:${PORT}`)
+      return
+    }
+    // PID exists but not healthy — kill and restart
+    try {
+      process.kill(existing, "SIGTERM")
+    } catch {
+      // ignore
+    }
+  }
+
+  const logFd = fs.openSync(LOG_FILE, "a")
+  const bridgePath = path.join(ROOT, "server", "bridge.ts")
+
+  // Find tsx binary — try local first, then global
+  let tsxBin: string
+  const localTsx = path.join(ROOT, "node_modules", ".bin", "tsx")
+  if (fs.existsSync(localTsx)) {
+    tsxBin = localTsx
+  } else {
+    try {
+      tsxBin = execSync("which tsx", { encoding: "utf-8" }).trim()
+    } catch {
+      console.error("❌ tsx not found. Run: npm install -g tsx")
+      process.exit(1)
+    }
+  }
+
+  const child = spawn(tsxBin, [bridgePath], {
+    cwd: ROOT,
+    env: { ...process.env, PORT: String(PORT) },
+    detached: true,
+    stdio: ["ignore", logFd, logFd],
+  })
+
+  child.unref()
+  fs.closeSync(logFd)
+
+  if (child.pid) {
+    fs.writeFileSync(PID_FILE, String(child.pid))
+
+    // Wait a moment and verify it started
+    await new Promise((r) => setTimeout(r, 1500))
+    const healthy = await checkHealth()
+
+    if (healthy) {
+      console.log(`✅ Bridge started (PID ${child.pid})`)
+      console.log(`   WebSocket: ws://localhost:${PORT}`)
+      console.log(`   Logs:      ${LOG_FILE}`)
+      console.log(`   Extension: ${path.join(ROOT, "dist")}`)
+    } else {
+      console.log(`⚠️  Bridge spawned (PID ${child.pid}) but not responding yet.`)
+      console.log(`   Check logs: cat ${LOG_FILE}`)
+    }
+  } else {
+    console.error("❌ Failed to spawn bridge process")
+    process.exit(1)
+  }
+}
+
+function stop() {
+  const pid = readPid()
+  if (!pid) {
+    console.log("ℹ️  Bridge is not running")
+    return
+  }
+
+  try {
+    process.kill(pid, "SIGTERM")
+    // Clean up PID file
+    try {
+      fs.unlinkSync(PID_FILE)
+    } catch {
+      // ignore
+    }
+    console.log(`⏹  Bridge stopped (PID ${pid})`)
+  } catch (err) {
+    console.error(`❌ Failed to stop bridge: ${err}`)
+    // Clean up stale PID
+    try {
+      fs.unlinkSync(PID_FILE)
+    } catch {
+      // ignore
+    }
+  }
+}
+
+async function status() {
+  const pid = readPid()
+  const healthy = await checkHealth()
+
+  if (pid && healthy) {
+    console.log(`✅ Bridge running (PID ${pid}) on ws://localhost:${PORT}`)
+  } else if (pid) {
+    console.log(`⚠️  Bridge process exists (PID ${pid}) but not responding`)
+  } else {
+    console.log("⏹  Bridge is not running")
+  }
+}
+
+function logs() {
+  if (!fs.existsSync(LOG_FILE)) {
+    console.log("No logs yet. Start the bridge first: pi-chrome start")
+    return
+  }
+  const tail = spawn("tail", ["-f", "-n", "50", LOG_FILE], {
+    stdio: "inherit",
+  })
+  process.on("SIGINT", () => {
+    tail.kill()
+    process.exit(0)
+  })
+}
+
+function ext() {
+  const distPath = path.join(ROOT, "dist")
+  if (!fs.existsSync(distPath)) {
+    console.log("❌ Extension not built yet. Run: npm run build:ext")
+    process.exit(1)
+  }
+  console.log(distPath)
+}
+
+function help() {
+  console.log(`
+pi-chrome — Pi Chrome Operator bridge
+
+Usage:
+  pi-chrome start    Start the bridge server (background)
+  pi-chrome stop     Stop the bridge server
+  pi-chrome status   Check if the bridge is running
+  pi-chrome logs     Tail bridge logs
+  pi-chrome ext      Print Chrome extension path
+
+Environment:
+  PORT               Bridge port (default: 9224)
+`)
+}
+
+switch (command) {
+  case "start":
+    await start()
+    break
+  case "stop":
+    stop()
+    break
+  case "status":
+    await status()
+    break
+  case "logs":
+    logs()
+    break
+  case "ext":
+    ext()
+    break
+  default:
+    help()
+    break
+}

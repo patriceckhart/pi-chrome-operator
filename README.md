@@ -20,37 +20,36 @@ Chrome Extension (React + shadcn) ←→ WebSocket ←→ Pi Bridge Server ←�
 
 ## Quick Start
 
-### 1. Install dependencies
+### 1. Install globally
 
 ```bash
+# From the project directory
 npm install
+npm run build
+npm link
 ```
 
-### 2. Build the extension
-
-```bash
-npm run build:ext
-```
-
-### 3. Load in Chrome
+### 2. Load extension in Chrome
 
 1. Open `chrome://extensions`
 2. Enable **Developer mode** (top right)
 3. Click **Load unpacked**
-4. Select the `dist/` folder
+4. Select the path from `pi-chrome ext`
 
-### 4. Start the bridge server
+### 3. Start / stop the bridge
 
 ```bash
-npm run bridge
+pi-chrome start    # start bridge in background
+pi-chrome stop     # stop bridge
+pi-chrome status   # check if running
+pi-chrome logs     # tail bridge logs
+pi-chrome ext      # print extension path
 ```
-
-This spawns `pi --mode rpc` and exposes it on `ws://localhost:9224`.
 
 > **Prerequisite:** You need `pi` installed and configured with at least one API key.
 > Run `pi` once in your terminal to set it up.
 
-### 5. Use it!
+### 4. Use it!
 
 - Click the Pi icon in Chrome → opens the side panel
 - Chat with Pi normally ("What's the capital of France?")
