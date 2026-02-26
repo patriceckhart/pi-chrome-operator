@@ -2,7 +2,7 @@
 
 **Let [badlogic's pi](https://pi.dev) take the wheel in your browser.**
 
-![Pi Chrome Operator](docs/screenshot.png) Summarize pages, fill forms, navigate sites, check mail — all via natural language. Save routines for tasks you repeat.
+![Pi Chrome Operator](docs/screenshot.png) Summarize pages, fill forms, navigate sites, check mail - all via natural language. Save routines for tasks you repeat.
 
 ## How it works
 
@@ -13,10 +13,10 @@ Chrome Extension (React + shadcn) <-> WebSocket <-> Pi Bridge Server <-> Pi RPC 
   (browser actions)                                              (Anthropic, OpenAI, etc.)
 ```
 
-1. **Chrome Extension** — side panel / popup with chat UI
-2. **Pi Bridge Server** — small Node.js server that spawns `pi --mode rpc` and relays via WebSocket
-3. **Pi Agent** — full Pi with all tools, models, and conversation history
-4. **Content Script** — executes browser actions (click, type, navigate, extract) on the active tab
+1. **Chrome Extension** - side panel / popup with chat UI
+2. **Pi Bridge Server** - small Node.js server that spawns `pi --mode rpc` and relays via WebSocket
+3. **Pi Agent** - full Pi with all tools, models, and conversation history
+4. **Content Script** - executes browser actions (click, type, navigate, extract) on the active tab
 
 ## Install
 
@@ -73,27 +73,27 @@ pi-chrome ext      # print Chrome extension path
 ## Features
 
 ### Full Pi Chat
-Chat with Pi like normal — full access to all tools (read, bash, edit, write) and your configured AI models.
+Chat with Pi like normal - full access to all tools (read, bash, edit, write) and your configured AI models.
 
 ### Image Support
 Paste, drag-and-drop, or upload images. Pi can see and analyze them.
 
 ### Browser Control
 Pi can see the current page and execute actions:
-- **navigate** — go to a URL
-- **click** — click elements by CSS selector or visible text
-- **type** — fill in form fields
-- **select** — choose dropdown options
-- **scroll** — scroll the page
-- **extract** — read text content
-- **wait** — pause between actions
+- **navigate** - go to a URL
+- **click** - click elements by CSS selector or visible text
+- **type** - fill in form fields
+- **select** - choose dropdown options
+- **scroll** - scroll the page
+- **extract** - read text content
+- **wait** - pause between actions
 
 ### Saved Routines
 Save prompts as routines for one-click execution:
-- **Check my mails** — opens Gmail, summarizes important messages
-- **Summarize this page** — reads and summarizes current page
-- **Help me fill this form** — analyzes form fields and assists
-- **Find contact info** — finds emails, phones, addresses
+- **Check my mails** - opens Gmail, summarizes important messages
+- **Summarize this page** - reads and summarizes current page
+- **Help me fill this form** - analyzes form fields and assists
+- **Find contact info** - finds emails, phones, addresses
 
 Create your own routines for any repeated task.
 
