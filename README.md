@@ -1,6 +1,6 @@
 # Pi Chrome Operator
 
-**Chat with Pi AI to control your browser.** Summarize pages, fill forms, navigate sites, check mail — all via natural language. Save routines for tasks you repeat.
+**Let [badlogic's pi](https://pi.dev) take the wheel in your browser.** Summarize pages, fill forms, navigate sites, check mail — all via natural language. Save routines for tasks you repeat.
 
 ## How it works
 
