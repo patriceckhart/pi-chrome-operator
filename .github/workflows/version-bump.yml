@@ -3,58 +3,55 @@ name: Version Bump
 on:
   push:
     branches: [main]
-    # Don't trigger on version bump commits (avoid infinite loop)
-    paths-ignore:
-      - '.github/workflows/**'
 
 permissions:
   contents: write
+  packages: write
 
 jobs:
   bump:
     runs-on: ubuntu-latest
-    # Skip if the commit was made by the bot
-    if: "!contains(github.event.head_commit.message, '[skip ci]') && !contains(github.event.head_commit.message, 'chore: bump version')"
+    if: "!contains(github.event.head_commit.message, 'chore: bump version')"
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          registry-url: https://npm.pkg.github.com
+          scope: '@patriceckhart'
 
       - name: Install dependencies
         run: npm install
 
       - name: Bump patch version
         run: |
-          # Read current version
           CURRENT=$(node -p "require('./package.json').version")
           echo "Current version: $CURRENT"
-
-          # Bump patch
           NEW=$(npx semver $CURRENT -i patch)
           echo "New version: $NEW"
-
-          # Update package.json
           npm version $NEW --no-git-tag-version
-
           echo "VERSION=$NEW" >> $GITHUB_ENV
 
       - name: Build extension
         run: npm run build
 
-      - name: Commit & push
+      - name: Publish to GitHub Packages
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Commit, tag & push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "chore: bump version to ${{ env.VERSION }} [skip ci]"
+          git commit -m "chore: bump version to ${{ env.VERSION }}"
           git tag "v${{ env.VERSION }}"
           git push
           git push --tags
