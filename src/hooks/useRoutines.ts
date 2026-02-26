@@ -6,38 +6,34 @@ const STORAGE_KEY = "pi_routines"
 const BUILT_IN_ROUTINES: Routine[] = [
   {
     id: "builtin-check-mail",
-    name: "📬 Check my mails",
+    name: "Check my mails",
     description: "Open Gmail, scan recent emails, and give me a summary of what's important",
     prompt:
       "Go to Gmail (https://mail.google.com). Look at my recent emails. Tell me what's important and summarize the key messages. Focus on action items and urgent things.",
-    icon: "📬",
     createdAt: 0,
   },
   {
     id: "builtin-summarize",
-    name: "📝 Summarize this page",
+    name: "Summarize this page",
     description: "Read the current page and give me a concise summary",
     prompt:
       "Look at the current page I have open and give me a clear, concise summary. Highlight the key points and any important details.",
-    icon: "📝",
     createdAt: 0,
   },
   {
     id: "builtin-fill-form",
-    name: "📋 Help me fill this form",
+    name: "Help me fill this form",
     description: "Analyze the current form and help me fill it out",
     prompt:
       "Look at the current page. There should be a form. Tell me what fields are present and help me fill them out. Ask me for any information you need.",
-    icon: "📋",
     createdAt: 0,
   },
   {
     id: "builtin-find-contact",
-    name: "🔍 Find contact info",
+    name: "Find contact info",
     description: "Find contact information on the current website",
     prompt:
       "Look at the current website and find contact information — email, phone, address, contact form. Summarize what you find.",
-    icon: "🔍",
     createdAt: 0,
   },
 ]

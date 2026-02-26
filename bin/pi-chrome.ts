@@ -81,7 +81,7 @@ async function start() {
   if (existing) {
     const healthy = await checkHealth()
     if (healthy) {
-      console.log(`✅ Bridge already running (PID ${existing}) on ws://localhost:${PORT}`)
+      console.log(`+ Bridge already running (PID ${existing}) on ws://localhost:${PORT}`)
       return
     }
     // PID exists but not healthy — kill and restart
@@ -104,7 +104,7 @@ async function start() {
     try {
       tsxBin = execSync("which tsx", { encoding: "utf-8" }).trim()
     } catch {
-      console.error("❌ tsx not found. Run: npm install -g tsx")
+      console.error("ERROR: tsx not found. Run: npm install -g tsx")
       process.exit(1)
     }
   }
@@ -127,16 +127,16 @@ async function start() {
     const healthy = await checkHealth()
 
     if (healthy) {
-      console.log(`✅ Bridge started (PID ${child.pid})`)
+      console.log(`+ Bridge started (PID ${child.pid})`)
       console.log(`   WebSocket: ws://localhost:${PORT}`)
       console.log(`   Logs:      ${LOG_FILE}`)
       console.log(`   Extension: ${path.join(ROOT, "dist")}`)
     } else {
-      console.log(`⚠️  Bridge spawned (PID ${child.pid}) but not responding yet.`)
+      console.log(`WARNING: Bridge spawned (PID ${child.pid}) but not responding yet.`)
       console.log(`   Check logs: cat ${LOG_FILE}`)
     }
   } else {
-    console.error("❌ Failed to spawn bridge process")
+    console.error("ERROR: Failed to spawn bridge process")
     process.exit(1)
   }
 }
@@ -144,7 +144,7 @@ async function start() {
 function stop() {
   const pid = readPid()
   if (!pid) {
-    console.log("ℹ️  Bridge is not running")
+    console.log("- Bridge is not running")
     return
   }
 
@@ -156,9 +156,9 @@ function stop() {
     } catch {
       // ignore
     }
-    console.log(`⏹  Bridge stopped (PID ${pid})`)
+    console.log(`- Bridge stopped (PID ${pid})`)
   } catch (err) {
-    console.error(`❌ Failed to stop bridge: ${err}`)
+    console.error(`ERROR: Failed to stop bridge: ${err}`)
     // Clean up stale PID
     try {
       fs.unlinkSync(PID_FILE)
@@ -173,11 +173,11 @@ async function status() {
   const healthy = await checkHealth()
 
   if (pid && healthy) {
-    console.log(`✅ Bridge running (PID ${pid}) on ws://localhost:${PORT}`)
+    console.log(`+ Bridge running (PID ${pid}) on ws://localhost:${PORT}`)
   } else if (pid) {
-    console.log(`⚠️  Bridge process exists (PID ${pid}) but not responding`)
+    console.log(`WARNING: Bridge process exists (PID ${pid}) but not responding`)
   } else {
-    console.log("⏹  Bridge is not running")
+    console.log("- Bridge is not running")
   }
 }
 
@@ -198,7 +198,7 @@ function logs() {
 function ext() {
   const distPath = path.join(ROOT, "dist")
   if (!fs.existsSync(distPath)) {
-    console.log("❌ Extension not built yet. Run: npm run build:ext")
+    console.log("ERROR: Extension not built yet. Run: npm run build:ext")
     process.exit(1)
   }
   console.log(distPath)

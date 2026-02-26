@@ -2,13 +2,11 @@
 
 **Chat with Pi AI to control your browser.** Summarize pages, fill forms, navigate sites, check mail — all via natural language. Save routines for tasks you repeat.
 
-![Architecture](docs/architecture.png)
-
 ## How it works
 
 ```
-Chrome Extension (React + shadcn) ←→ WebSocket ←→ Pi Bridge Server ←→ Pi RPC (local)
-        ↓                                                                    ↓
+Chrome Extension (React + shadcn) <-> WebSocket <-> Pi Bridge Server <-> Pi RPC (local)
+        |                                                                    |
   Content Script                                                    Your AI models
   (browser actions)                                              (Anthropic, OpenAI, etc.)
 ```
@@ -18,51 +16,62 @@ Chrome Extension (React + shadcn) ←→ WebSocket ←→ Pi Bridge Server ←�
 3. **Pi Agent** — full Pi with all tools, models, and conversation history
 4. **Content Script** — executes browser actions (click, type, navigate, extract) on the active tab
 
-## Quick Start
-
-### 1. Install globally
+## Install
 
 ```bash
-# From the project directory
-npm install
-npm run build
-npm link
+npm install -g github:patriceckhart/pi-chrome-operator
 ```
 
-### 2. Load extension in Chrome
+This installs the `pi-chrome` CLI globally and automatically builds the Chrome extension.
+
+> **Prerequisite:** You need [Pi](https://github.com/mariozechner/pi) installed and configured with at least one API key.
+> ```bash
+> npm install -g @mariozechner/pi-coding-agent
+> pi  # run once to configure
+> ```
+
+## Setup
+
+### 1. Load extension in Chrome
 
 1. Open `chrome://extensions`
 2. Enable **Developer mode** (top right)
 3. Click **Load unpacked**
-4. Select the path from `pi-chrome ext`
+4. Select the path from:
+   ```bash
+   pi-chrome ext
+   ```
 
-### 3. Start / stop the bridge
+### 2. Start the bridge
+
+```bash
+pi-chrome start
+```
+
+### 3. Use it!
+
+Click the Pi icon in Chrome, the side panel opens, chat away.
+
+## CLI
 
 ```bash
 pi-chrome start    # start bridge in background
 pi-chrome stop     # stop bridge
 pi-chrome status   # check if running
 pi-chrome logs     # tail bridge logs
-pi-chrome ext      # print extension path
+pi-chrome ext      # print Chrome extension path
 ```
-
-> **Prerequisite:** You need `pi` installed and configured with at least one API key.
-> Run `pi` once in your terminal to set it up.
-
-### 4. Use it!
-
-- Click the Pi icon in Chrome → opens the side panel
-- Chat with Pi normally ("What's the capital of France?")
-- Ask Pi to interact with the page ("Click the login button", "Fill in the form with my name John")
-- Use routines for repeated tasks ("Check my Gmail and summarize")
 
 ## Features
 
-### 💬 Full Pi Chat
-Talk to Pi like you normally would — it has access to all its tools (read, bash, edit, write) through the bridge.
+### Full Pi Chat
+Chat with Pi like normal — full access to all tools (read, bash, edit, write) and your configured AI models.
 
-### 🌐 Browser Control
-Pi can see the current page (URL, text, forms, buttons, links) and execute actions:
+### Image Support
+Paste, drag-and-drop, or upload images. Pi can see and analyze them.
+
+### Browser Control
+Pi can see the current page and execute actions:
 - **navigate** — go to a URL
 - **click** — click elements by CSS selector or visible text
 - **type** — fill in form fields
@@ -71,66 +80,67 @@ Pi can see the current page (URL, text, forms, buttons, links) and execute actio
 - **extract** — read text content
 - **wait** — pause between actions
 
-### 📋 Saved Routines
+### Saved Routines
 Save prompts as routines for one-click execution:
-- 📬 **Check my mails** — opens Gmail, summarizes important messages
-- 📝 **Summarize this page** — reads and summarizes current page
-- 📋 **Help me fill this form** — analyzes form fields and assists
-- 🔍 **Find contact info** — finds emails, phones, addresses on current site
+- **Check my mails** — opens Gmail, summarizes important messages
+- **Summarize this page** — reads and summarizes current page
+- **Help me fill this form** — analyzes form fields and assists
+- **Find contact info** — finds emails, phones, addresses
 
 Create your own routines for any repeated task.
 
-### ⚙️ Settings
+### Settings
 - Configure bridge URL
 - Toggle auto-run for browser actions
 
 ## Development
 
 ```bash
-# Dev mode with HMR (for UI development)
+git clone https://github.com/patriceckhart/pi-chrome-operator.git
+cd pi-chrome-operator
+npm install
+npm run build
+
+# Dev mode with HMR
 npm run dev
 
-# Build extension
-npm run build:ext
-
-# Run bridge server
-npm run bridge
-
-# Or with custom port
-PORT=8888 npm run bridge
+# Or link globally for CLI
+npm link
 ```
 
 ## Project Structure
 
 ```
-├── server/
-│   └── bridge.ts          # Pi RPC bridge (WebSocket relay)
-├── src/
-│   ├── background.ts      # Chrome service worker
-│   ├── content.ts         # Page action executor
-│   ├── manifest.ts        # Chrome extension manifest
-│   ├── types.ts           # Shared types
-│   ├── popup.tsx           # Popup entry
-│   ├── sidepanel.tsx       # Side panel entry
-│   ├── ui/
-│   │   ├── App.tsx         # Main chat UI
-│   │   ├── ChatMessage.tsx # Message bubble component
-│   │   ├── RoutinePanel.tsx # Saved routines
-│   │   └── SettingsPanel.tsx
-│   ├── hooks/
-│   │   ├── usePiBridge.ts  # WebSocket connection to bridge
-│   │   ├── useRoutines.ts  # Routine storage
-│   │   └── useSettings.ts  # Settings storage
-│   ├── components/ui/      # shadcn components
-│   └── lib/utils.ts
-├── popup.html
-├── sidepanel.html
-└── dist/                   # Built extension (load this in Chrome)
+bin/
+  pi-chrome.js       # CLI (start/stop/status/logs/ext)
+server/
+  bridge.ts          # Pi RPC bridge (WebSocket relay)
+src/
+  background.ts      # Chrome service worker
+  content.ts         # Page action executor + page context
+  manifest.ts        # Chrome extension manifest
+  types.ts           # Shared types
+  ui/
+    App.tsx           # Main chat UI
+    ChatMessage.tsx   # Message bubbles with image support
+    RoutinePanel.tsx
+    SettingsPanel.tsx
+  hooks/
+    usePiBridge.ts    # WebSocket connection
+    useRoutines.ts    # Routine storage
+    useSettings.ts
+  components/         # shadcn/ui components
+dist/                 # Built Chrome extension
+.github/workflows/    # Auto version bump on push
 ```
 
 ## Requirements
 
 - Node.js 18+
 - Chrome 116+ (for side panel API)
-- `pi` CLI installed and configured (`npm i -g @mariozechner/pi-coding-agent`)
+- [Pi CLI](https://github.com/mariozechner/pi) installed and configured
 - At least one AI provider API key configured in Pi
+
+## License
+
+MIT

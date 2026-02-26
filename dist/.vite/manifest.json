@@ -1,0 +1,49 @@
+{
+  "../../../../@crx/manifest": {
+    "file": "assets/crx-manifest.js-D8K6883N.js",
+    "name": "crx-manifest.js",
+    "src": "../../../../@crx/manifest",
+    "isEntry": true
+  },
+  "_App-C6EitOBq.css": {
+    "file": "assets/App-C6EitOBq.css",
+    "src": "_App-C6EitOBq.css"
+  },
+  "_App-Cv6rjMs0.js": {
+    "file": "assets/App-Cv6rjMs0.js",
+    "name": "App",
+    "css": [
+      "assets/App-C6EitOBq.css"
+    ]
+  },
+  "popup.html": {
+    "file": "assets/popup.html-_UOtFkTJ.js",
+    "name": "popup.html",
+    "src": "popup.html",
+    "isEntry": true,
+    "imports": [
+      "_App-Cv6rjMs0.js"
+    ]
+  },
+  "sidepanel.html": {
+    "file": "assets/sidepanel.html-_UOtFkTJ.js",
+    "name": "sidepanel.html",
+    "src": "sidepanel.html",
+    "isEntry": true,
+    "imports": [
+      "_App-Cv6rjMs0.js"
+    ]
+  },
+  "src/background.ts": {
+    "file": "assets/background.ts-DdwrCSmL.js",
+    "name": "background.ts",
+    "src": "src/background.ts",
+    "isEntry": true
+  },
+  "src/content.ts": {
+    "file": "assets/content.ts-MzDwqD2G.js",
+    "name": "content.ts",
+    "src": "src/content.ts",
+    "isEntry": true
+  }
+}

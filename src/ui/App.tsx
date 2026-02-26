@@ -256,7 +256,7 @@ IMPORTANT: Always look at the page context to understand what's currently on scr
           const args = event.args as Record<string, unknown>
           addMessage({
             role: "tool",
-            content: `⚡ ${name}: ${JSON.stringify(args).slice(0, 200)}`,
+            content: `Tool: ${name}: ${JSON.stringify(args).slice(0, 200)}`,
           })
           break
         }
@@ -267,7 +267,7 @@ IMPORTANT: Always look at the page context to understand what's currently on scr
           if (text) {
             addMessage({
               role: "tool",
-              content: `✓ ${text.slice(0, 300)}${text.length > 300 ? "…" : ""}`,
+              content: `Done: ${text.slice(0, 300)}${text.length > 300 ? "…" : ""}`,
             })
           }
           break
@@ -316,7 +316,7 @@ IMPORTANT: Always look at the page context to understand what's currently on scr
       for (const action of actions) {
         // Check if aborted before each action
         if (ac.signal.aborted) {
-          addMessage({ role: "status", content: "⏹ Stopped by user" })
+          addMessage({ role: "status", content: "Stopped by user" })
           break
         }
 
@@ -331,7 +331,7 @@ IMPORTANT: Always look at the page context to understand what's currently on scr
             ? `extract from ${(action as { selector?: string }).selector || "page"}`
             : action.type
 
-        addMessage({ role: "status", content: `🔄 ${label}` })
+        addMessage({ role: "status", content: `Running: ${label}` })
 
         try {
           const result = await new Promise<{ ok: boolean; result?: unknown; error?: string }>((resolve) => {
@@ -342,22 +342,22 @@ IMPORTANT: Always look at the page context to understand what's currently on scr
           })
 
           if (ac.signal.aborted) {
-            addMessage({ role: "status", content: "⏹ Stopped by user" })
+            addMessage({ role: "status", content: "Stopped by user" })
             break
           }
 
           if (result.ok) {
-            addMessage({ role: "status", content: `✅ ${label}` })
+            addMessage({ role: "status", content: `Done: ${label}` })
             results.push(`Action ${action.type}: success${result.result ? " → " + JSON.stringify(result.result).slice(0, 500) : ""}`)
           } else {
-            addMessage({ role: "status", content: `❌ ${label}: ${result.error}` })
+            addMessage({ role: "status", content: `Failed: ${label}: ${result.error}` })
             results.push(`Action ${action.type}: FAILED — ${result.error}`)
           }
 
           // Delay between actions to let page update
           await new Promise((r) => setTimeout(r, 800))
         } catch (err) {
-          addMessage({ role: "status", content: `❌ ${label}: ${err}` })
+          addMessage({ role: "status", content: `Failed: ${label}: ${err}` })
           results.push(`Action ${action.type}: ERROR — ${err}`)
         }
       }
@@ -394,14 +394,14 @@ IMPORTANT: Always look at the page context to understand what's currently on scr
       currentAssistantRef.current = null
     }
     setRunningActions(false)
-    addMessage({ role: "status", content: "⏹ Stopped" })
+    addMessage({ role: "status", content: "Stopped" })
   }, [abort, addMessage])
 
   // Grab page context
   const inspectPage = useCallback(async () => {
     const ctx = await getPageContext()
     if (ctx) {
-      addMessage({ role: "status", content: `📄 Page context captured (${ctx.length} chars)` })
+      addMessage({ role: "status", content: `Page context: Page context captured (${ctx.length} chars)` })
     }
   }, [getPageContext, addMessage])
 

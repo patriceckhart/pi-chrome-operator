@@ -1,11 +1,11 @@
 import { defineManifest } from "@crxjs/vite-plugin"
+import pkg from "../package.json"
 
 export default defineManifest({
   manifest_version: 3,
   name: "Pi Chrome Operator",
-  version: "0.1.0",
-  description:
-    "Chat with Pi AI to control your browser — summarize pages, fill forms, check mail, and save routines.",
+  version: pkg.version,
+  description: pkg.description,
   permissions: ["storage", "tabs", "scripting", "activeTab", "sidePanel"],
   host_permissions: ["<all_urls>"],
   action: {
