@@ -1,5 +1,5 @@
 {
-  "name": "pi-chrome-operator",
+  "name": "@patriceckhart/pi-chrome-operator",
   "version": "0.0.1",
   "type": "module",
   "description": "Chat with Pi AI to control your browser — summarize pages, fill forms, check mail, and save routines.",
@@ -7,6 +7,9 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/patriceckhart/pi-chrome-operator.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   },
   "bin": {
     "pi-chrome": "bin/pi-chrome.js"
