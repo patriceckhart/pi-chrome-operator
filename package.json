@@ -9,7 +9,7 @@
     "url": "git+https://github.com/patriceckhart/pi-chrome-operator.git"
   },
   "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
+    "access": "public"
   },
   "bin": {
     "pi-chrome": "bin/pi-chrome.js"

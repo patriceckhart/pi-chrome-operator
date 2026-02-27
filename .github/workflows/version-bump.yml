@@ -23,8 +23,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          registry-url: https://npm.pkg.github.com
-          scope: '@patriceckhart'
 
       - name: Install dependencies
         run: npm install
@@ -41,8 +39,18 @@ jobs:
       - name: Build extension
         run: npm run build
 
+      - name: Publish to npm
+        run: |
+          echo "//registry.npmjs.org/:_authToken=\${NPM_TOKEN}" > .npmrc
+          npm publish --access public
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Publish to GitHub Packages
-        run: npm publish
+        run: |
+          echo "@patriceckhart:registry=https://npm.pkg.github.com" > .npmrc
+          echo "//npm.pkg.github.com/:_authToken=\${NODE_AUTH_TOKEN}" >> .npmrc
+          npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -50,6 +58,8 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -- .npmrc || true
+          rm -f .npmrc
           git add -A
           git commit -m "chore: bump version to ${{ env.VERSION }}"
           git tag "v${{ env.VERSION }}"

@@ -69,7 +69,7 @@ function checkForUpdate() {
             if (latest && compareVersions(local, latest) < 0) {
               console.log("")
               console.log(`  UPDATE AVAILABLE: v${local} -> v${latest}`)
-              console.log(`  Run: npm install -g github:patriceckhart/pi-chrome-operator`)
+              console.log(`  Run: npm install -g @patriceckhart/pi-chrome-operator`)
               console.log("")
             }
           }

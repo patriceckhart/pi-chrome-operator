@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.6
+
+- Published to npmjs.com: `npm install -g @patriceckhart/pi-chrome-operator`
+- CI workflow publishes to both npm and GitHub Packages
+- Simplified install command in README
+
 ## 0.0.5
 
 - Live version check on `pi-chrome start` and `pi-chrome status`

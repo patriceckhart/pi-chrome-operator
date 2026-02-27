@@ -21,13 +21,7 @@ Chrome Extension (React + shadcn) <-> WebSocket <-> Pi Bridge Server <-> Pi RPC 
 ## Install
 
 ```bash
-npm install -g @patriceckhart/pi-chrome-operator --registry=https://npm.pkg.github.com
-```
-
-Or directly from GitHub:
-
-```bash
-npm install -g github:patriceckhart/pi-chrome-operator
+npm install -g @patriceckhart/pi-chrome-operator
 ```
 
 This installs the `pi-chrome` CLI globally and automatically builds the Chrome extension.
