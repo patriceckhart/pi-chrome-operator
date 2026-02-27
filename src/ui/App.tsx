@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import {
   Send,
-  Square,
   BookOpen,
   Settings,
   RotateCcw,
@@ -566,8 +565,8 @@ IMPORTANT: Always look at the page context to understand what's currently on scr
             className="min-h-[38px] max-h-[120px] resize-none text-sm"
           />
           {streaming || runningActions ? (
-            <Button size="icon" variant="destructive" onClick={handleStop} className="shrink-0 h-[38px] w-[38px]">
-              <Square className="h-4 w-4" />
+            <Button size="icon" variant="ghost" onClick={handleStop} className="shrink-0 h-[38px] w-[38px]">
+              <span className="block h-4 w-4 rounded-full bg-red-500" />
             </Button>
           ) : (
             <Button

@@ -54,6 +54,31 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true
   }
 
+  // Execute a function in the page's main world (bypasses CSP)
+  if (message?.type === "EXECUTE_IN_PAGE_WORLD") {
+    void (async () => {
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+        if (!tab?.id) throw new Error("No active tab")
+        const results = await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          world: "MAIN",
+          func: (fnStr: string, args: unknown) => {
+            // eslint-disable-next-line no-eval
+            const fn = eval("(" + fnStr + ")")
+            return fn(args)
+          },
+          args: [message.fn, message.args],
+        })
+        const result = results?.[0]?.result
+        sendResponse({ ok: true, result })
+      } catch (err) {
+        sendResponse({ ok: false, error: String(err) })
+      }
+    })()
+    return true
+  }
+
   // Get page context from active tab
   if (message?.type === "GET_PAGE_CONTEXT") {
     void (async () => {

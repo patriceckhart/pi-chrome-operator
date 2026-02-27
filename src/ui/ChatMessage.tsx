@@ -3,6 +3,64 @@ import { PiLogo } from "@/components/PiLogo"
 import { cn } from "@/lib/utils"
 import type { ChatMessage as ChatMessageType } from "@/types"
 
+/**
+ * Parse message content into segments of plain text and code blocks.
+ */
+function parseContent(text: string): Array<{ type: "text" | "code"; lang?: string; content: string }> {
+  const segments: Array<{ type: "text" | "code"; lang?: string; content: string }> = []
+  const regex = /```(\S*)\n?([\s\S]*?)```/g
+  let lastIndex = 0
+  let match
+
+  while ((match = regex.exec(text)) !== null) {
+    // Text before this code block
+    if (match.index > lastIndex) {
+      const before = text.slice(lastIndex, match.index).trim()
+      if (before) segments.push({ type: "text", content: before })
+    }
+    segments.push({ type: "code", lang: match[1] || undefined, content: match[2].trim() })
+    lastIndex = match.index + match[0].length
+  }
+
+  // Remaining text after last code block
+  if (lastIndex < text.length) {
+    const remaining = text.slice(lastIndex).trim()
+    if (remaining) segments.push({ type: "text", content: remaining })
+  }
+
+  return segments.length > 0 ? segments : [{ type: "text", content: text }]
+}
+
+function MessageContent({ content }: { content: string }) {
+  const segments = parseContent(content)
+
+  // No code blocks, render as plain text
+  if (segments.length === 1 && segments[0].type === "text") {
+    return <div className="whitespace-pre-wrap break-words">{content}</div>
+  }
+
+  return (
+    <div className="space-y-2">
+      {segments.map((seg, i) =>
+        seg.type === "code" ? (
+          <div key={i} className="rounded-md bg-black/30 border border-white/5 overflow-hidden">
+            {seg.lang && (
+              <div className="px-3 py-1 text-[10px] text-muted-foreground border-b border-white/5 font-mono">
+                {seg.lang}
+              </div>
+            )}
+            <pre className="px-3 py-2 text-xs font-mono overflow-x-auto">
+              <code>{seg.content}</code>
+            </pre>
+          </div>
+        ) : (
+          <div key={i} className="whitespace-pre-wrap break-words">{seg.content}</div>
+        )
+      )}
+    </div>
+  )
+}
+
 export function ChatMessage({ message }: { message: ChatMessageType }) {
   const isUser = message.role === "user"
   const isAssistant = message.role === "assistant"
@@ -26,7 +84,7 @@ export function ChatMessage({ message }: { message: ChatMessageType }) {
         className={cn(
           "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs",
           isUser && "bg-primary text-primary-foreground",
-          isAssistant && "bg-violet-900 text-violet-300",
+          isAssistant && "bg-muted text-white",
           isTool && "bg-amber-900 text-amber-300",
           isSystem && "bg-gray-700 text-gray-300"
         )}
@@ -66,7 +124,7 @@ export function ChatMessage({ message }: { message: ChatMessageType }) {
             <span className="animate-bounce" style={{ animationDelay: "300ms" }}>●</span>
           </span>
         ) : message.content ? (
-          <div className="whitespace-pre-wrap break-words">{message.content}</div>
+          <MessageContent content={message.content} />
         ) : null}
       </div>
     </div>
