@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.5
+
+- Live version check on `pi-chrome start` and `pi-chrome status`
+- Queries GitHub tags API for latest release, compares with local version
+- Shows update instructions when a newer version is available
+- Silent timeout after 3 seconds, never blocks the CLI
+
 ## 0.0.3
 
 - Rich editor support: Monaco Editor, CKEditor 4/5, ProseMirror/Tiptap, TinyMCE

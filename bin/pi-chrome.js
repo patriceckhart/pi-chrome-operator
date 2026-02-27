@@ -16,6 +16,7 @@ import fs from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import http from "node:http"
+import https from "node:https"
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -27,6 +28,61 @@ const LOG_FILE = path.join(PID_DIR, "bridge.log")
 const PORT = Number(process.env.PORT ?? 9224)
 
 const command = process.argv[2]
+
+function getLocalVersion() {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, "package.json"), "utf-8"))
+    return pkg.version ?? "0.0.0"
+  } catch {
+    return "0.0.0"
+  }
+}
+
+function compareVersions(a, b) {
+  const pa = a.split(".").map(Number)
+  const pb = b.split(".").map(Number)
+  for (let i = 0; i < 3; i++) {
+    if ((pa[i] ?? 0) < (pb[i] ?? 0)) return -1
+    if ((pa[i] ?? 0) > (pb[i] ?? 0)) return 1
+  }
+  return 0
+}
+
+function checkForUpdate() {
+  return new Promise((resolve) => {
+    const local = getLocalVersion()
+
+    const options = {
+      hostname: "api.github.com",
+      path: "/repos/patriceckhart/pi-chrome-operator/tags?per_page=1",
+      headers: { "User-Agent": "pi-chrome-cli" },
+    }
+
+    const req = https.get(options, (res) => {
+      let data = ""
+      res.on("data", (c) => (data += c))
+      res.on("end", () => {
+        try {
+          const tags = JSON.parse(data)
+          if (Array.isArray(tags) && tags.length > 0) {
+            const latest = tags[0].name?.replace(/^v/, "") ?? ""
+            if (latest && compareVersions(local, latest) < 0) {
+              console.log("")
+              console.log(`  UPDATE AVAILABLE: v${local} -> v${latest}`)
+              console.log(`  Run: npm install -g github:patriceckhart/pi-chrome-operator`)
+              console.log("")
+            }
+          }
+        } catch {
+          // silently ignore
+        }
+        resolve()
+      })
+    })
+    req.on("error", () => resolve())
+    req.setTimeout(3000, () => { req.destroy(); resolve() })
+  })
+}
 
 function ensureDir() {
   if (!fs.existsSync(PID_DIR)) {
@@ -196,9 +252,9 @@ Environment:
 }
 
 switch (command) {
-  case "start":  await start(); break
+  case "start":  await start(); await checkForUpdate(); break
   case "stop":   stop(); break
-  case "status": await status(); break
+  case "status": await status(); await checkForUpdate(); break
   case "logs":   logs(); break
   case "ext":    ext(); break
   default:       help(); break
