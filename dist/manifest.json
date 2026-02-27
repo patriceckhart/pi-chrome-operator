@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Pi Chrome Operator",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Chat with Pi AI to control your browser — summarize pages, fill forms, check mail, and save routines.",
   "permissions": [
     "storage",
