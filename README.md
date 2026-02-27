@@ -2,7 +2,7 @@
 
 **Let [badlogic's pi](https://pi.dev) take the wheel in your browser.**
 
-![Pi Chrome Operator](docs/screenshot.png) Summarize pages, fill forms, navigate sites, check mail - all via natural language. Save routines for tasks you repeat.
+![Pi Chrome Operator](docs/screenshot.png?v=2) Summarize pages, fill forms, navigate sites, check mail - all via natural language. Save routines for tasks you repeat.
 
 ## How it works
 
