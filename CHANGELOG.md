@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.0.8
+
+- Fixed Pi getting stuck on `extension_ui_request` events from Pi RPC
+- Bridge now handles extension UI protocol: forwards dialog requests (confirm, select, input, editor) to extension, auto-responds when extension is disconnected
+- Chrome extension responds to `extension_ui_request` events: auto-confirms confirmations, auto-selects first option for selects, cancels input/editor dialogs
+- Fire-and-forget extension UI methods (notify, setStatus, setWidget, setTitle) displayed as status messages in chat
+- Prevents Pi from hanging indefinitely when extensions request user interaction
+- UI theme: changed primary color from purple to white with dark foreground
+- User message bubbles, avatar, "live" badge, send button, and focus rings are now white with dark icons/text
+- Added workflow_dispatch trigger to CI
+
 ## 0.0.6
 
 - Published to npmjs.com: `npm install -g @patriceckhart/pi-chrome-operator`

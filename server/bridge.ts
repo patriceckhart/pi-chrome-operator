@@ -36,10 +36,6 @@ function startPi() {
 
   piRL = readline.createInterface({ input: pi.stdout! })
   piRL.on("line", (line: string) => {
-    // Forward every event from Pi → WebSocket client
-    if (activeSocket?.readyState === WebSocket.OPEN) {
-      activeSocket.send(line)
-    }
     // Also log
     try {
       const ev = JSON.parse(line)
@@ -47,10 +43,36 @@ function startPi() {
         const d = ev.assistantMessageEvent
         if (d?.type === "text_delta") process.stdout.write(d.delta)
       } else {
-        console.log(`[pi → ext] ${ev.type}`)
+        console.log(`[pi → ext] ${ev.type}${ev.type === "extension_ui_request" ? ` (method: ${ev.method}, id: ${ev.id})` : ""}`)
+      }
+
+      // Handle extension_ui_request: fire-and-forget methods get auto-acked,
+      // dialog methods (confirm, select, input, editor) are forwarded to the extension.
+      if (ev.type === "extension_ui_request") {
+        const fireAndForget = ["notify", "setStatus", "setWidget", "setTitle", "set_editor_text"]
+        if (fireAndForget.includes(ev.method)) {
+          if (activeSocket?.readyState === WebSocket.OPEN) {
+            activeSocket.send(line)
+          }
+          return
+        }
+        // Dialog methods: forward to extension and wait for response
+        if (activeSocket?.readyState === WebSocket.OPEN) {
+          activeSocket.send(line)
+        } else {
+          console.log(`[bridge] no extension connected, auto-responding to ${ev.method} (id: ${ev.id})`)
+          const autoResponse = getAutoResponse(ev)
+          sendToPi(autoResponse)
+        }
+        return
       }
     } catch {
       // non-JSON, ignore
+    }
+
+    // Forward every event from Pi → WebSocket client
+    if (activeSocket?.readyState === WebSocket.OPEN) {
+      activeSocket.send(line)
     }
   })
 
@@ -59,6 +81,24 @@ function startPi() {
     pi = null
     piRL = null
   })
+}
+
+/**
+ * Generate an auto-response for extension_ui_request when the extension isn't connected.
+ */
+function getAutoResponse(ev: { id: string; method: string }): object {
+  switch (ev.method) {
+    case "confirm":
+      return { type: "extension_ui_response", id: ev.id, confirmed: true }
+    case "select":
+      return { type: "extension_ui_response", id: ev.id, cancelled: true }
+    case "input":
+      return { type: "extension_ui_response", id: ev.id, cancelled: true }
+    case "editor":
+      return { type: "extension_ui_response", id: ev.id, cancelled: true }
+    default:
+      return { type: "extension_ui_response", id: ev.id, cancelled: true }
+  }
 }
 
 function sendToPi(cmd: object) {

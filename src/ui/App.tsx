@@ -27,7 +27,7 @@ type View = "chat" | "routines" | "settings"
 
 export function App() {
   const { settings, updateSettings } = useSettings()
-  const { connected, streaming, prompt: sendPrompt, abort, newSession, onEvent } = usePiBridge(settings.bridgeUrl)
+  const { connected, streaming, prompt: sendPrompt, abort, newSession, send, onEvent } = usePiBridge(settings.bridgeUrl)
   const { routines, saveRoutine, deleteRoutine } = useRoutines()
 
   const [view, setView] = useState<View>("chat")
@@ -282,9 +282,83 @@ IMPORTANT: Always look at the page context to understand what's currently on scr
           }
           break
         }
+
+        case "extension_ui_request": {
+          const req = event as {
+            id: string
+            method: string
+            title?: string
+            message?: string
+            options?: string[]
+            notifyType?: string
+            statusKey?: string
+            statusText?: string
+          }
+
+          // Fire-and-forget methods: just display them
+          if (req.method === "notify") {
+            addMessage({
+              role: "status",
+              content: `${req.message ?? ""}`,
+            })
+            break
+          }
+
+          if (req.method === "setStatus") {
+            if (req.statusText) {
+              addMessage({
+                role: "status",
+                content: req.statusText,
+              })
+            }
+            break
+          }
+
+          if (req.method === "setTitle" || req.method === "setWidget" || req.method === "set_editor_text") {
+            // Silently ignore UI-only methods
+            break
+          }
+
+          // Dialog methods: auto-confirm to unblock Pi
+          if (req.method === "confirm") {
+            addMessage({
+              role: "status",
+              content: `Auto-confirmed: ${req.title ?? ""} ${req.message ?? ""}`,
+            })
+            send({ type: "extension_ui_response", id: req.id, confirmed: true })
+            break
+          }
+
+          if (req.method === "select") {
+            const options = req.options ?? []
+            if (options.length > 0) {
+              addMessage({
+                role: "status",
+                content: `Auto-selected: "${options[0]}" for "${req.title ?? ""}"`,
+              })
+              send({ type: "extension_ui_response", id: req.id, value: options[0] })
+            } else {
+              send({ type: "extension_ui_response", id: req.id, cancelled: true })
+            }
+            break
+          }
+
+          if (req.method === "input" || req.method === "editor") {
+            addMessage({
+              role: "status",
+              content: `Skipped input: ${req.title ?? ""}`,
+            })
+            send({ type: "extension_ui_response", id: req.id, cancelled: true })
+            break
+          }
+
+          // Unknown method: cancel to unblock
+          send({ type: "extension_ui_response", id: req.id, cancelled: true })
+          break
+        }
       }
     })
-  }, [onEvent, addMessage, updateMessage])
+  }, [onEvent, addMessage, updateMessage, send])
 
   // Parse and execute browser actions from Pi's response, then feed results back
   const parseBrowserActions = useCallback(
