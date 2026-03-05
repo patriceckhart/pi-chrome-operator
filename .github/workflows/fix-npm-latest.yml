@@ -1,0 +1,17 @@
+name: Fix npm latest tag
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set latest tag to 0.0.8
+        run: |
+          echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc
+          npm dist-tag add @patriceckhart/pi-chrome-operator@0.0.8 latest
+          npm unpublish @patriceckhart/pi-chrome-operator@0.0.9 --force || true
+          rm -f .npmrc
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
