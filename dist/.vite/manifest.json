@@ -5,43 +5,43 @@
     "src": "../../../../@crx/manifest",
     "isEntry": true
   },
-  "_App-C4ZcVkqt.js": {
-    "file": "assets/App-C4ZcVkqt.js",
+  "_App-C_0uJfQ_.js": {
+    "file": "assets/App-C_0uJfQ_.js",
     "name": "App",
     "css": [
-      "assets/App-DkG3T7RF.css"
+      "assets/App-iZh9t2ze.css"
     ]
   },
-  "_App-DkG3T7RF.css": {
-    "file": "assets/App-DkG3T7RF.css",
-    "src": "_App-DkG3T7RF.css"
+  "_App-iZh9t2ze.css": {
+    "file": "assets/App-iZh9t2ze.css",
+    "src": "_App-iZh9t2ze.css"
   },
   "popup.html": {
-    "file": "assets/popup.html-DY5HSRdo.js",
+    "file": "assets/popup.html-D_Lm8kRd.js",
     "name": "popup.html",
     "src": "popup.html",
     "isEntry": true,
     "imports": [
-      "_App-C4ZcVkqt.js"
+      "_App-C_0uJfQ_.js"
     ]
   },
   "sidepanel.html": {
-    "file": "assets/sidepanel.html-DY5HSRdo.js",
+    "file": "assets/sidepanel.html-D_Lm8kRd.js",
     "name": "sidepanel.html",
     "src": "sidepanel.html",
     "isEntry": true,
     "imports": [
-      "_App-C4ZcVkqt.js"
+      "_App-C_0uJfQ_.js"
     ]
   },
   "src/background.ts": {
-    "file": "assets/background.ts-Ndi06bqj.js",
+    "file": "assets/background.ts-Cndnt71T.js",
     "name": "background.ts",
     "src": "src/background.ts",
     "isEntry": true
   },
   "src/content.ts": {
-    "file": "assets/content.ts-CnBHFcQW.js",
+    "file": "assets/content.ts-DQDpm3f8.js",
     "name": "content.ts",
     "src": "src/content.ts",
     "isEntry": true

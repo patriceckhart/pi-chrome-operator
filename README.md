@@ -2,21 +2,23 @@
 
 **Let [badlogic's pi](https://pi.dev) take the wheel in your browser.**
 
-![Pi Chrome Operator](docs/screenshot.png?v=2) Summarize pages, fill forms, navigate sites, check mail - all via natural language. Save routines for tasks you repeat.
+![Pi Chrome Operator](docs/screenshot.png?v=2) Summarize pages, fill forms, navigate sites, check mail — all via natural language across all your browser tabs. Save routines for tasks you repeat.
 
 ## How it works
 
 ```
 Chrome Extension (React + shadcn) <-> WebSocket <-> Pi Bridge Server <-> Pi RPC (local)
-        |                                                                    |
-  Content Script                                                    Your AI models
-  (browser actions)                                              (Anthropic, OpenAI, etc.)
+        |                                              |                      |
+  Content Script                               HTTP /browser-action    Pi + Extension
+  (page actions)                               (tool ↔ bridge relay)   (browser_action tool)
 ```
 
-1. **Chrome Extension** - side panel / popup with chat UI
-2. **Pi Bridge Server** - small Node.js server that spawns `pi --mode rpc` and relays via WebSocket
-3. **Pi Agent** - full Pi with all tools, models, and conversation history
-4. **Content Script** - executes browser actions (click, type, navigate, extract) on the active tab
+1. **Pi Extension** (`server/extension.ts`) — registers a `browser_action` tool via `pi.registerTool()`, so the LLM calls it natively like any other tool
+2. **Pi Bridge Server** — spawns `pi --mode rpc --no-tools --extension server/extension.ts`, relays WebSocket ↔ Pi RPC, and serves HTTP `/browser-action` for the extension to reach the Chrome side
+3. **Chrome Extension** — side panel with chat UI, handles `BROWSER_ACTION_REQUEST` messages from the bridge, executes them via Chrome APIs and content scripts
+4. **Content Script** — runs on every page, executes DOM-level actions (click, type, scroll, extract) and provides page context
+
+Browser actions flow through Pi's native tool system: the LLM decides to call `browser_action` → Pi executes the extension tool → the extension POSTs to the bridge → the bridge sends it over WebSocket to Chrome → Chrome executes and returns the result → the tool returns structured output to the LLM. No prompt engineering or regex parsing.
 
 ## Install
 
@@ -66,30 +68,42 @@ pi-chrome ext      # print Chrome extension path
 
 ## Features
 
-### Full Pi Chat
-Chat with Pi like normal - full access to all tools (read, bash, edit, write) and your configured AI models.
+### Dedicated Browser Agent
+Pi runs as a focused browser operator — built-in coding tools are disabled, and the system prompt is tailored for browser interaction. Pi won't try to explore your filesystem; it goes straight to using `browser_action`.
+
+### Model Selector
+Switch between any of your configured models directly from the extension header. Shows `provider / Model Name` with the active model highlighted.
 
 ### Image Support
 Paste, drag-and-drop, or upload images. Pi can see and analyze them.
 
-### Browser Control
-Pi can see the current page and execute actions:
-- **navigate** - go to a URL
-- **click** - click elements by CSS selector or visible text
-- **type** - fill in form fields
-- **select** - choose dropdown options
-- **scroll** - scroll the page
-- **extract** - read text content
-- **wait** - pause between actions
+### Multi-Tab Browser Control
+Pi can see and control **all** your browser tabs, not just the active one. The `browser_action` tool is registered natively with Pi, so the LLM calls it as a structured tool with proper argument validation and gets results directly in context.
+
+Available actions:
+
+| Action | Description |
+|--------|-------------|
+| `list_tabs` | List all open tabs with IDs, URLs, titles |
+| `get_tab_context` | Inspect a tab's page — forms, buttons, links, text |
+| `navigate` | Go to a URL (in any tab) |
+| `click` | Click elements by CSS selector or visible text |
+| `type` | Type into form fields, with optional submit |
+| `select` | Choose dropdown options |
+| `scroll` | Scroll the page up or down |
+| `extract` | Read text content from elements |
+| `new_tab` | Open a URL in a new tab |
+| `switch_tab` | Activate a tab by ID |
+| `close_tab` | Close a tab by ID |
+| `wait` | Pause between actions |
+
+All actions accept an optional `tabId` to target a specific tab. Pi automatically gets the list of open tabs and active tab context at the start of every turn.
+
+### Rich Editor Support
+Works with Monaco Editor, CKEditor 4/5, ProseMirror/Tiptap, TinyMCE, and contenteditable elements. Three-layer text insertion: editor JS API → keyboard-level InputEvent simulation → execCommand fallback.
 
 ### Saved Routines
-Save prompts as routines for one-click execution:
-- **Check my mails** - opens Gmail, summarizes important messages
-- **Summarize this page** - reads and summarizes current page
-- **Help me fill this form** - analyzes form fields and assists
-- **Find contact info** - finds emails, phones, addresses
-
-Create your own routines for any repeated task.
+Save prompts as routines for one-click execution. Create your own for any repeated task.
 
 ### Settings
 - Configure bridge URL
@@ -114,26 +128,26 @@ npm link
 
 ```
 bin/
-  pi-chrome.js       # CLI (start/stop/status/logs/ext)
+  pi-chrome.ts       # CLI (start/stop/status/logs/ext)
 server/
-  bridge.ts          # Pi RPC bridge (WebSocket relay)
+  bridge.ts          # Pi RPC bridge — WebSocket relay + HTTP /browser-action
+  extension.ts       # Pi extension — registers browser_action tool
 src/
-  background.ts      # Chrome service worker
-  content.ts         # Page action executor + page context
+  background.ts      # Chrome service worker — tab management, action routing
+  content.ts         # Page action executor + page context extraction
   manifest.ts        # Chrome extension manifest
-  types.ts           # Shared types
+  types.ts           # Shared types (BrowserAction, TabInfo, etc.)
   ui/
-    App.tsx           # Main chat UI
-    ChatMessage.tsx   # Message bubbles with image support
+    App.tsx           # Main chat UI with model selector
+    ChatMessage.tsx   # Message bubbles with image + code block support
     RoutinePanel.tsx
     SettingsPanel.tsx
   hooks/
-    usePiBridge.ts    # WebSocket connection
+    usePiBridge.ts    # WebSocket connection + browser action handler
     useRoutines.ts    # Routine storage
     useSettings.ts
   components/         # shadcn/ui components
 dist/                 # Built Chrome extension
-.github/workflows/    # Auto version bump on push
 ```
 
 ## Requirements

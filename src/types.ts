@@ -1,13 +1,27 @@
 // ── Browser actions (executed by content script) ────────────────────────────
 export type BrowserAction =
-  | { type: "navigate"; url: string }
-  | { type: "click"; selector: string; text?: string }
-  | { type: "type"; selector: string; text: string; submit?: boolean }
-  | { type: "select"; selector: string; value: string }
+  | { type: "navigate"; url: string; tabId?: number }
+  | { type: "click"; selector: string; text?: string; tabId?: number }
+  | { type: "type"; selector: string; text: string; submit?: boolean; tabId?: number }
+  | { type: "select"; selector: string; value: string; tabId?: number }
   | { type: "wait"; ms: number }
-  | { type: "scroll"; direction: "up" | "down"; amount?: number }
-  | { type: "extract"; selector?: string; description?: string }
-  | { type: "screenshot" }
+  | { type: "scroll"; direction: "up" | "down"; amount?: number; tabId?: number }
+  | { type: "extract"; selector?: string; description?: string; tabId?: number }
+  | { type: "screenshot"; tabId?: number }
+  | { type: "list_tabs" }
+  | { type: "new_tab"; url: string }
+  | { type: "close_tab"; tabId: number }
+  | { type: "switch_tab"; tabId: number }
+  | { type: "get_tab_context"; tabId?: number }
+
+// ── Tab info (returned by list_tabs) ────────────────────────────────────────
+export type TabInfo = {
+  tabId: number
+  url: string
+  title: string
+  active: boolean
+  windowId: number
+}
 
 // ── Image attachment ────────────────────────────────────────────────────────
 export type ImageAttachment = {

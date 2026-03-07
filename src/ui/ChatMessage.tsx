@@ -1,4 +1,4 @@
-import { User, Terminal, AlertCircle } from "lucide-react"
+import { User, Globe, AlertCircle, Check, XCircle } from "lucide-react"
 import { PiLogo } from "@/components/PiLogo"
 import { cn } from "@/lib/utils"
 import type { ChatMessage as ChatMessageType } from "@/types"
@@ -69,10 +69,23 @@ export function ChatMessage({ message }: { message: ChatMessageType }) {
   const isSystem = message.role === "system"
 
   if (isStatus) {
+    const isError = message.content.startsWith("[error]")
+    const isOk = message.content.startsWith("[ok]")
+    const displayContent = isError
+      ? message.content.slice(7).trimStart()
+      : isOk
+      ? message.content.slice(4).trimStart()
+      : message.content
+
+    const StatusIcon = isError ? XCircle : isOk ? Check : AlertCircle
+
     return (
-      <div className="flex items-center gap-2 px-3 py-1 text-xs text-muted-foreground">
-        <AlertCircle className="h-3 w-3 shrink-0" />
-        <span>{message.content}</span>
+      <div className={cn(
+        "flex items-start gap-2 px-3 py-1 text-xs",
+        isError ? "text-red-400" : "text-muted-foreground"
+      )}>
+        <StatusIcon className="h-3 w-3 shrink-0 mt-0.5" />
+        <span>{displayContent}</span>
       </div>
     )
   }
@@ -85,11 +98,11 @@ export function ChatMessage({ message }: { message: ChatMessageType }) {
           "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs",
           isUser && "bg-primary text-primary-foreground",
           isAssistant && "bg-muted text-white",
-          isTool && "bg-amber-900 text-amber-300",
-          isSystem && "bg-gray-700 text-gray-300"
+          isTool && "bg-neutral-800 text-neutral-300",
+          isSystem && "bg-neutral-800 text-neutral-400"
         )}
       >
-        {isUser ? <User className="h-3 w-3" /> : isTool ? <Terminal className="h-3 w-3" /> : <PiLogo className="h-3 w-3" />}
+        {isUser ? <User className="h-3 w-3" /> : isTool ? <Globe className="h-3 w-3" /> : <PiLogo className="h-3 w-3" />}
       </div>
 
       {/* Message bubble */}
@@ -98,7 +111,7 @@ export function ChatMessage({ message }: { message: ChatMessageType }) {
           "max-w-[88%] rounded-xl px-3 py-2 text-sm leading-relaxed",
           isUser && "bg-primary text-primary-foreground rounded-br-sm",
           isAssistant && "bg-muted rounded-bl-sm",
-          isTool && "bg-amber-950 border border-amber-800 rounded-bl-sm font-mono text-xs",
+          isTool && "bg-neutral-900 border border-neutral-700 rounded-bl-sm font-mono text-xs text-neutral-300",
           isSystem && "bg-muted/50 text-muted-foreground text-xs italic"
         )}
       >

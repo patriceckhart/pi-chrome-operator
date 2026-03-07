@@ -1,19 +1,28 @@
 /**
  * Pi RPC Bridge Server
  *
- * Spawns `pi --mode rpc --no-session` and exposes it over WebSocket so the
- * Chrome extension can talk to the full Pi agent (with all tools, models,
- * conversation history, etc.).
+ * Spawns `pi --mode rpc --no-session --extension server/extension.ts`
+ * and exposes it over WebSocket so the Chrome extension can talk to Pi.
  *
- * Also injects a browser-control custom tool so Pi can drive the browser.
+ * The Pi extension (server/extension.ts) registers a `browser_action` tool.
+ * When Pi calls that tool, the extension makes an HTTP POST to this bridge,
+ * which forwards the action to the Chrome extension over WebSocket and
+ * returns the result.
  */
 
 import { spawn, type ChildProcess } from "node:child_process"
-import { createServer } from "node:http"
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http"
 import { WebSocketServer, WebSocket } from "ws"
 import readline from "node:readline"
+import path from "node:path"
+import { fileURLToPath } from "node:url"
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const ROOT = path.resolve(__dirname, "..")
 
 const PORT = Number(process.env.PORT ?? 9224)
+const EXTENSION_PATH = path.join(__dirname, "extension.ts")
 
 // ── Pi RPC process ──────────────────────────────────────────────────────────
 
@@ -21,13 +30,21 @@ let pi: ChildProcess | null = null
 let piRL: readline.Interface | null = null
 let activeSocket: WebSocket | null = null
 
+// Pending browser action requests from the Pi extension (HTTP POST → WS → response)
+const pendingActions = new Map<string, {
+  resolve: (data: unknown) => void
+  timer: ReturnType<typeof setTimeout>
+}>()
+let actionCounter = 0
+
 function startPi() {
   if (pi) return
 
-  console.log("[bridge] spawning pi --mode rpc --no-session")
-  pi = spawn("pi", ["--mode", "rpc", "--no-session"], {
+  console.log("[bridge] spawning pi --mode rpc --no-session --no-tools --extension", EXTENSION_PATH)
+  pi = spawn("pi", ["--mode", "rpc", "--no-session", "--no-tools", "--extension", EXTENSION_PATH], {
     stdio: ["pipe", "pipe", "pipe"],
-    env: { ...process.env },
+    env: { ...process.env, PI_CHROME_BRIDGE_PORT: String(PORT) },
+    cwd: ROOT,
   })
 
   pi.stderr?.on("data", (d: Buffer) => {
@@ -36,7 +53,6 @@ function startPi() {
 
   piRL = readline.createInterface({ input: pi.stdout! })
   piRL.on("line", (line: string) => {
-    // Also log
     try {
       const ev = JSON.parse(line)
       if (ev.type === "message_update") {
@@ -119,14 +135,91 @@ function killPi() {
   }
 }
 
+// ── HTTP request handlers ───────────────────────────────────────────────────
+
+function readBody(req: IncomingMessage): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let body = ""
+    req.on("data", (chunk) => (body += chunk))
+    req.on("end", () => resolve(body))
+    req.on("error", reject)
+  })
+}
+
+/**
+ * Handle POST /browser-action
+ * Called by the Pi extension's browser_action tool.
+ * Forwards the action to the Chrome extension via WebSocket and waits for result.
+ */
+async function handleBrowserAction(req: IncomingMessage, res: ServerResponse) {
+  try {
+    const body = await readBody(req)
+    const action = JSON.parse(body)
+
+    if (!activeSocket || activeSocket.readyState !== WebSocket.OPEN) {
+      res.writeHead(503, { "Content-Type": "application/json" })
+      res.end(JSON.stringify({ ok: false, error: "Chrome extension not connected" }))
+      return
+    }
+
+    const requestId = `ba-${++actionCounter}`
+    const timeout = 30000
+
+    // Send to Chrome extension via WebSocket
+    const wsMessage = {
+      type: "BROWSER_ACTION_REQUEST",
+      requestId,
+      action,
+    }
+
+    const resultPromise = new Promise<unknown>((resolve) => {
+      const timer = setTimeout(() => {
+        pendingActions.delete(requestId)
+        resolve({ ok: false, error: "Chrome extension did not respond within 30s" })
+      }, timeout)
+
+      pendingActions.set(requestId, { resolve, timer })
+    })
+
+    activeSocket.send(JSON.stringify(wsMessage))
+    console.log(`[bridge] browser_action → chrome: ${action.type}${action.tabId ? ` (tab ${action.tabId})` : ""} [${requestId}]`)
+
+    const result = await resultPromise
+    res.writeHead(200, { "Content-Type": "application/json" })
+    res.end(JSON.stringify(result))
+  } catch (err) {
+    res.writeHead(500, { "Content-Type": "application/json" })
+    res.end(JSON.stringify({ ok: false, error: String(err) }))
+  }
+}
+
 // ── HTTP + WebSocket server ─────────────────────────────────────────────────
 
-const httpServer = createServer((_req, res) => {
-  res.writeHead(200, {
-    "Content-Type": "application/json",
-    "Access-Control-Allow-Origin": "*",
-  })
-  res.end(JSON.stringify({ status: "ok", pi: pi ? "running" : "stopped" }))
+const httpServer = createServer((req, res) => {
+  // CORS headers for all requests
+  res.setHeader("Access-Control-Allow-Origin", "*")
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type")
+
+  if (req.method === "OPTIONS") {
+    res.writeHead(204)
+    res.end()
+    return
+  }
+
+  // POST /browser-action — from Pi extension
+  if (req.method === "POST" && req.url === "/browser-action") {
+    void handleBrowserAction(req, res)
+    return
+  }
+
+  // GET / — health check
+  res.writeHead(200, { "Content-Type": "application/json" })
+  res.end(JSON.stringify({
+    status: "ok",
+    pi: pi ? "running" : "stopped",
+    chrome: activeSocket?.readyState === WebSocket.OPEN ? "connected" : "disconnected",
+  }))
 })
 
 const wss = new WebSocketServer({ server: httpServer })
@@ -141,6 +234,17 @@ wss.on("connection", (ws) => {
   ws.on("message", (raw) => {
     try {
       const msg = JSON.parse(raw.toString())
+
+      // Handle browser action results from Chrome extension
+      if (msg.type === "BROWSER_ACTION_RESULT") {
+        const pending = pendingActions.get(msg.requestId)
+        if (pending) {
+          clearTimeout(pending.timer)
+          pendingActions.delete(msg.requestId)
+          pending.resolve(msg.result)
+        }
+        return
+      }
 
       // Special: restart Pi session
       if (msg.type === "restart") {
@@ -160,11 +264,18 @@ wss.on("connection", (ws) => {
   ws.on("close", () => {
     console.log("[bridge] extension disconnected")
     activeSocket = null
+    // Fail all pending actions
+    for (const [id, pending] of pendingActions) {
+      clearTimeout(pending.timer)
+      pending.resolve({ ok: false, error: "Chrome extension disconnected" })
+      pendingActions.delete(id)
+    }
   })
 })
 
 httpServer.listen(PORT, () => {
   console.log(`[bridge] Pi RPC bridge listening on ws://localhost:${PORT}`)
+  console.log(`[bridge] HTTP endpoint: http://localhost:${PORT}/browser-action`)
   console.log(`[bridge] Connect from Chrome extension to start chatting with Pi`)
 })
 

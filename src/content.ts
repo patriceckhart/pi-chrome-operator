@@ -516,6 +516,14 @@ async function executeAction(action: BrowserAction): Promise<unknown> {
 
       const editor = detectEditor(el)
 
+      // If text is empty and submit is true, just focus and submit (don't clear content)
+      if (!action.text && action.submit) {
+        editor.target.focus()
+        await delay(100)
+        await submitForm(el, editor.target)
+        return { typed: action.selector, text: "", method: "submit-only", editor: editor.type }
+      }
+
       // Try editor JS APIs via main world injection (most reliable)
       if (editor.type === "monaco") {
         const ok = await tryMonacoAPI(action.selector, action.text)
@@ -542,8 +550,10 @@ async function executeAction(action: BrowserAction): Promise<unknown> {
       }
 
       // Keyboard-level simulation fallback
-      const useCharByChar = action.text.length < 500
-      await insertText(editor.target, action.text, useCharByChar)
+      if (action.text) {
+        const useCharByChar = action.text.length < 500
+        await insertText(editor.target, action.text, useCharByChar)
+      }
 
       if (action.submit) await submitForm(el, editor.target)
 
@@ -589,20 +599,50 @@ async function executeAction(action: BrowserAction): Promise<unknown> {
 
 async function submitForm(el: HTMLElement, target: HTMLElement) {
   await delay(200)
+
+  // Try form submit first
   const form = el.closest("form")
   if (form) {
     form.requestSubmit()
-  } else {
-    target.dispatchEvent(new KeyboardEvent("keydown", {
-      key: "Enter", code: "Enter", keyCode: 13, bubbles: true, composed: true,
-    }))
-    target.dispatchEvent(new KeyboardEvent("keypress", {
-      key: "Enter", code: "Enter", keyCode: 13, bubbles: true, composed: true,
-    }))
-    target.dispatchEvent(new KeyboardEvent("keyup", {
-      key: "Enter", code: "Enter", keyCode: 13, bubbles: true, composed: true,
+    return
+  }
+
+  // For React/Vue/etc apps, we need to dispatch events that the framework
+  // actually listens to. The key is using the right event properties
+  // and ensuring they propagate correctly through the composed DOM.
+  target.focus()
+  await delay(50)
+
+  // Dispatch a full Enter key sequence with all properties React needs
+  const keyEventInit: KeyboardEventInit = {
+    key: "Enter",
+    code: "Enter",
+    keyCode: 13,
+    which: 13,
+    charCode: 13,
+    bubbles: true,
+    cancelable: true,
+    composed: true,
+  }
+
+  // keydown is what most frameworks listen to
+  const keydown = new KeyboardEvent("keydown", keyEventInit)
+  const cancelled = !target.dispatchEvent(keydown)
+
+  if (!cancelled) {
+    // Some apps also need the beforeinput event for Enter
+    target.dispatchEvent(new InputEvent("beforeinput", {
+      inputType: "insertParagraph",
+      bubbles: true,
+      cancelable: true,
+      composed: true,
     }))
   }
+
+  target.dispatchEvent(new KeyboardEvent("keypress", keyEventInit))
+
+  await delay(50)
+  target.dispatchEvent(new KeyboardEvent("keyup", keyEventInit))
 }
 
 function findByText(text: string): HTMLElement | null {
