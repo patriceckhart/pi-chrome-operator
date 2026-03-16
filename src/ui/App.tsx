@@ -17,7 +17,8 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { ChatMessage } from "./ChatMessage"
+import { ChatMessage, ActivityBlock } from "./ChatMessage"
+import type { ActivityGroup, ActivityItem } from "./ChatMessage"
 import { RoutinePanel } from "./RoutinePanel"
 import { SettingsPanel } from "./SettingsPanel"
 import { usePiBridge } from "@/hooks/usePiBridge"
@@ -46,6 +47,10 @@ export function App() {
   const scrollRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const currentAssistantRef = useRef<string | null>(null)
+
+  // Activity groups (tool calls + results)
+  const [activityGroups, setActivityGroups] = useState<ActivityGroup[]>([])
+  const currentGroupRef = useRef<string | null>(null)
 
   // Model state
   const [models, setModels] = useState<PiModel[]>([])
@@ -109,7 +114,7 @@ export function App() {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
-  }, [messages])
+  }, [messages, activityGroups])
 
   const addMessage = useCallback((msg: Omit<ChatMessageType, "id" | "timestamp">) => {
     const full: ChatMessageType = {
@@ -195,6 +200,12 @@ export function App() {
       setInput("")
       setPendingImages([])
 
+      // Collapse all previous activity groups
+      setActivityGroups((prev) =>
+        prev.map((g) => ({ ...g, collapsed: true }))
+      )
+      currentGroupRef.current = null
+
       addMessage({
         role: "user",
         content: msg,
@@ -215,6 +226,8 @@ export function App() {
     return onEvent((event) => {
       switch (event.type) {
         case "agent_start": {
+          // If there was a tool group before this text, close it
+          currentGroupRef.current = null
           const id = addMessage({ role: "assistant", content: "", streaming: true })
           currentAssistantRef.current = id
           break
@@ -260,32 +273,57 @@ export function App() {
             if (args.selector) label += ` → ${args.selector}`
             if (args.url) label += ` → ${args.url}`
           }
-          addMessage({
-            role: "tool",
-            content: label,
+
+          const itemId = crypto.randomUUID()
+          const item: ActivityItem = {
+            id: itemId,
+            label,
+            timestamp: Date.now(),
+          }
+
+          setActivityGroups((prev) => {
+            // Find or create current group
+            let groupId = currentGroupRef.current
+            if (groupId) {
+              // Add to existing group
+              return prev.map((g) =>
+                g.id === groupId ? { ...g, items: [...g.items, item] } : g
+              )
+            } else {
+              // Create new group
+              groupId = crypto.randomUUID()
+              currentGroupRef.current = groupId
+              return [...prev, { id: groupId, items: [item], collapsed: false }]
+            }
           })
+
+          // Store item id for matching with tool_execution_end
+          ;(window as Record<string, unknown>).__lastToolItemId = itemId
           break
         }
 
         case "tool_execution_end": {
-          const name = event.toolName as string
           const result = event.result as { content?: Array<{ text?: string }> }
           const isError = event.isError as boolean
           const text = result?.content?.[0]?.text
-          if (text && name === "browser_action") {
+          const itemId = (window as Record<string, unknown>).__lastToolItemId as string | undefined
+
+          if (itemId && text) {
             const lines = text.split("\n").filter(Boolean)
             const preview = lines.length > 3
-              ? lines.slice(0, 3).join("\n") + `\n… (${lines.length} lines)`
+              ? lines.slice(0, 3).join("\n") + ` (${lines.length} lines)`
               : text
-            addMessage({
-              role: "status",
-              content: isError ? `[error] ${preview}` : `[ok] ${preview.slice(0, 300)}`,
-            })
-          } else if (text) {
-            addMessage({
-              role: "tool",
-              content: `Done: ${text.slice(0, 300)}${text.length > 300 ? "…" : ""}`,
-            })
+
+            setActivityGroups((prev) =>
+              prev.map((g) => ({
+                ...g,
+                items: g.items.map((i) =>
+                  i.id === itemId
+                    ? { ...i, result: preview.slice(0, 300), isError }
+                    : i
+                ),
+              }))
+            )
           }
           break
         }
@@ -377,6 +415,7 @@ export function App() {
       )
       currentAssistantRef.current = null
     }
+    currentGroupRef.current = null
     addMessage({ role: "status", content: "Stopped" })
   }, [abort, addMessage])
 
@@ -462,6 +501,8 @@ export function App() {
             onClick={() => {
               newSession()
               setMessages([])
+              setActivityGroups([])
+              currentGroupRef.current = null
             }}
             title="New session"
           >
@@ -511,7 +552,7 @@ export function App() {
 
       {/* Messages */}
       <ScrollArea ref={scrollRef} className="flex-1 py-2">
-        {messages.length === 0 && (
+        {messages.length === 0 && activityGroups.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center px-4 py-12 text-muted-foreground">
             <PiLogo className="h-10 w-10 mb-3 text-white" />
             <div className="text-sm font-medium mb-1">Hi! I'm Pi.</div>
@@ -530,9 +571,61 @@ export function App() {
             )}
           </div>
         )}
-        {messages.map((m) => (
-          <ChatMessage key={m.id} message={m} />
-        ))}
+        {(() => {
+          // Build a render list interleaving messages and activity groups
+          // Activity groups are placed after the assistant message whose streaming ended before the group started
+          // Simple approach: track a "group index" and insert groups between messages by timestamp
+          type RenderItem =
+            | { kind: "message"; message: ChatMessageType }
+            | { kind: "activity"; group: ActivityGroup; index: number }
+
+          const items: RenderItem[] = []
+          let groupIdx = 0
+
+          for (const m of messages) {
+            // Skip tool messages (they're in activity groups now)
+            if (m.role === "tool") continue
+
+            // Insert any activity groups that started before this message
+            while (groupIdx < activityGroups.length) {
+              const group = activityGroups[groupIdx]
+              const groupTime = group.items[0]?.timestamp ?? Infinity
+              if (groupTime < m.timestamp) {
+                items.push({ kind: "activity", group, index: groupIdx })
+                groupIdx++
+              } else {
+                break
+              }
+            }
+
+            items.push({ kind: "message", message: m })
+          }
+
+          // Remaining activity groups after all messages
+          while (groupIdx < activityGroups.length) {
+            items.push({ kind: "activity", group: activityGroups[groupIdx], index: groupIdx })
+            groupIdx++
+          }
+
+          return items.map((item) =>
+            item.kind === "message" ? (
+              <ChatMessage key={item.message.id} message={item.message} />
+            ) : (
+              <ActivityBlock
+                key={item.group.id}
+                group={item.group}
+                onToggle={() => {
+                  const idx = item.index
+                  setActivityGroups((prev) =>
+                    prev.map((g, i) =>
+                      i === idx ? { ...g, collapsed: !g.collapsed } : g
+                    )
+                  )
+                }}
+              />
+            )
+          )
+        })()}
       </ScrollArea>
 
       {/* Input */}
