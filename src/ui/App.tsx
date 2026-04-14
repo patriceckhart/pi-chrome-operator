@@ -12,7 +12,7 @@ import {
   ChevronDown,
   Sparkles,
 } from "lucide-react"
-import { PiLogo } from "@/components/PiLogo"
+
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
@@ -57,6 +57,11 @@ export function App() {
   const [currentModel, setCurrentModel] = useState<PiModel | null>(null)
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Tell background which window we're in
+  useEffect(() => {
+    chrome.runtime.sendMessage({ type: "SIDEPANEL_OPENED" }).catch(() => {})
+  }, [])
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -116,9 +121,12 @@ export function App() {
     }
   }, [messages, activityGroups])
 
+  const stripAnsi = (text: string) => text.replace(/\x1b\[[0-9;]*m/g, "")
+
   const addMessage = useCallback((msg: Omit<ChatMessageType, "id" | "timestamp">) => {
     const full: ChatMessageType = {
       ...msg,
+      content: stripAnsi(msg.content),
       id: crypto.randomUUID(),
       timestamp: Date.now(),
     }
@@ -470,16 +478,14 @@ export function App() {
       {/* Header */}
       <div className="flex items-center justify-between px-2.5 py-1.5 border-b bg-background/95 backdrop-blur">
         <div className="flex items-center gap-2">
-          <PiLogo className="h-4 w-4 text-white" />
-          <span className="font-semibold text-sm">Pi</span>
           <Badge variant={connected ? "default" : "destructive"} className="text-[10px] px-1.5 py-0">
             {connected ? (
               <>
-                <Wifi className="h-2.5 w-2.5 mr-0.5" /> live
+                <Wifi className="h-2.5 w-2.5 mr-0.5" /> connected
               </>
             ) : (
               <>
-                <WifiOff className="h-2.5 w-2.5 mr-0.5" /> offline
+                <WifiOff className="h-2.5 w-2.5 mr-0.5" /> disconnected
               </>
             )}
           </Badge>
@@ -554,8 +560,7 @@ export function App() {
       <ScrollArea ref={scrollRef} className="flex-1 py-2">
         {messages.length === 0 && activityGroups.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center px-4 py-12 text-muted-foreground">
-            <PiLogo className="h-10 w-10 mb-3 text-white" />
-            <div className="text-sm font-medium mb-1">Hi! I'm Pi.</div>
+            <img src={chrome.runtime.getURL("public/icons/icon-128.png")} alt="" className="h-10 w-10 mb-3" />
             <div className="text-xs">
               Ask me anything, or tell me to interact with the page.
               <br />
@@ -685,7 +690,7 @@ export function App() {
               }
             }}
             onPaste={handlePaste}
-            placeholder={connected ? "Ask Pi anything… paste or drop images" : "Start bridge first..."}
+            placeholder={connected ? "Ask me anything… paste or drop images" : "Start bridge first..."}
             disabled={!connected}
             rows={1}
             className="min-h-[38px] max-h-[120px] resize-none text-sm"

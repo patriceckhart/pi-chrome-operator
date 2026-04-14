@@ -35,21 +35,6 @@ export function SettingsPanel({ settings, onChange, onBack }: Props) {
           </p>
         </div>
 
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium">Auto-run browser actions</label>
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={settings.autoRun}
-              onChange={(e) => onChange({ autoRun: e.target.checked })}
-              className="rounded border-input"
-            />
-            <span className="text-sm text-muted-foreground">
-              Execute browser actions without confirmation
-            </span>
-          </div>
-        </div>
-
         <div className="rounded-lg bg-muted/50 p-3 text-xs space-y-1.5">
           <div className="font-medium">How to start the bridge:</div>
           <code className="block bg-background rounded px-2 py-1.5 text-[11px]">

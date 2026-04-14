@@ -55,13 +55,11 @@ export type Routine = {
 // ── Settings ────────────────────────────────────────────────────────────────
 export type Settings = {
   bridgeUrl: string
-  autoRun: boolean
   theme: "light" | "dark" | "system"
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   bridgeUrl: "ws://localhost:9224",
-  autoRun: false,
   theme: "system",
 }
 

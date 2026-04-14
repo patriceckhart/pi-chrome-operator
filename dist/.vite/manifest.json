@@ -1,41 +1,41 @@
 {
-  "../../../../../@crx/manifest": {
-    "file": "assets/crx-manifest.js-DEcgR4Ge.js",
+  "../../../../@crx/manifest": {
+    "file": "assets/crx-manifest.js-UVfmx0_1.js",
     "name": "crx-manifest.js",
-    "src": "../../../../../@crx/manifest",
+    "src": "../../../../@crx/manifest",
     "isEntry": true
   },
-  "_App-CKplvFOZ.js": {
-    "file": "assets/App-CKplvFOZ.js",
+  "_App-3sO34yRp.css": {
+    "file": "assets/App-3sO34yRp.css",
+    "src": "_App-3sO34yRp.css"
+  },
+  "_App-Dt7_j-Ok.js": {
+    "file": "assets/App-Dt7_j-Ok.js",
     "name": "App",
     "css": [
-      "assets/App-CnpqFd1-.css"
+      "assets/App-3sO34yRp.css"
     ]
   },
-  "_App-CnpqFd1-.css": {
-    "file": "assets/App-CnpqFd1-.css",
-    "src": "_App-CnpqFd1-.css"
-  },
   "popup.html": {
-    "file": "assets/popup.html-BGHHtv8d.js",
+    "file": "assets/popup.html-CZmIIORL.js",
     "name": "popup.html",
     "src": "popup.html",
     "isEntry": true,
     "imports": [
-      "_App-CKplvFOZ.js"
+      "_App-Dt7_j-Ok.js"
     ]
   },
   "sidepanel.html": {
-    "file": "assets/sidepanel.html-BGHHtv8d.js",
+    "file": "assets/sidepanel.html-CZmIIORL.js",
     "name": "sidepanel.html",
     "src": "sidepanel.html",
     "isEntry": true,
     "imports": [
-      "_App-CKplvFOZ.js"
+      "_App-Dt7_j-Ok.js"
     ]
   },
   "src/background.ts": {
-    "file": "assets/background.ts-Cndnt71T.js",
+    "file": "assets/background.ts-B9Z8j5mq.js",
     "name": "background.ts",
     "src": "src/background.ts",
     "isEntry": true

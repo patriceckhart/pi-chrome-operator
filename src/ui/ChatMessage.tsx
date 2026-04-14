@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { User, Globe, AlertCircle, Check, XCircle, ChevronDown, ChevronRight } from "lucide-react"
-import { PiLogo } from "@/components/PiLogo"
+
 import { cn } from "@/lib/utils"
 import type { ChatMessage as ChatMessageType } from "@/types"
 
@@ -174,16 +174,17 @@ export function ChatMessage({ message }: { message: ChatMessageType }) {
   return (
     <div className={cn("flex gap-2 px-2 py-2", isUser && "flex-row-reverse")}>
       {/* Avatar */}
-      <div
-        className={cn(
-          "flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs",
-          isUser && "bg-primary text-primary-foreground",
-          isAssistant && "bg-muted text-white",
-          isSystem && "bg-neutral-800 text-neutral-400"
-        )}
-      >
-        {isUser ? <User className="h-3 w-3" /> : <PiLogo className="h-3 w-3" />}
-      </div>
+      {isUser ? (
+        <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs">
+          <User className="h-3 w-3" />
+        </div>
+      ) : (
+        <img
+          src={chrome.runtime.getURL("public/icons/icon-48.png")}
+          alt="Assistant"
+          className="h-6 w-6 shrink-0 rounded-full"
+        />
+      )}
 
       {/* Message bubble */}
       <div

@@ -2,7 +2,7 @@
   "name": "@patriceckhart/pi-chrome-operator",
   "version": "0.0.11",
   "type": "module",
-  "description": "Chat with Pi AI to control your browser — summarize pages, fill forms, check mail, and save routines.",
+  "description": "Chat with pi agent to control your browser — summarize pages, fill forms, check mail, and save routines.",
   "license": "MIT",
   "repository": {
     "type": "git",

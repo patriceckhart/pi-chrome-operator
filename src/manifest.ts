@@ -10,7 +10,7 @@ export default defineManifest({
   host_permissions: ["<all_urls>"],
   action: {
     default_popup: "popup.html",
-    default_title: "Pi Operator",
+    default_title: "Pi Chrome Operator",
   },
   side_panel: {
     default_path: "sidepanel.html",

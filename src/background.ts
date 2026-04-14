@@ -13,9 +13,13 @@ chrome.runtime.onInstalled.addListener(() => {
     .catch(() => {})
 })
 
+/** Track which window the side panel is open in */
+let sidePanelWindowId: number | undefined
+
 /**
  * Resolve which tab to operate on.
- * If tabId is provided, use that. Otherwise fall back to the active tab.
+ * If tabId is provided, use that. Otherwise fall back to the active tab
+ * in the last focused window (or sidepanel window if known).
  */
 async function resolveTab(tabId?: number): Promise<chrome.tabs.Tab> {
   if (tabId != null) {
@@ -23,12 +27,36 @@ async function resolveTab(tabId?: number): Promise<chrome.tabs.Tab> {
     if (!tab) throw new Error(`Tab ${tabId} not found`)
     return tab
   }
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+
+  // Try the window where the side panel is open
+  if (sidePanelWindowId != null) {
+    const [tab] = await chrome.tabs.query({ active: true, windowId: sidePanelWindowId })
+    if (tab?.id) return tab
+  }
+
+  // Fall back to last focused window
+  const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
   if (!tab?.id) throw new Error("No active tab")
   return tab
 }
 
+/** Check if a URL can have content scripts injected */
+function isScriptableUrl(url?: string): boolean {
+  if (!url) return false
+  return url.startsWith("http://") || url.startsWith("https://")
+}
+
+// When the side panel opens, it tells us which window it's in
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message?.type === "SIDEPANEL_OPENED") {
+    void (async () => {
+      const win = await chrome.windows.getLastFocused()
+      sidePanelWindowId = win.id
+      sendResponse({ ok: true, windowId: win.id })
+    })()
+    return true
+  }
+
   // ── List all tabs ─────────────────────────────────────────────────────
   if (message?.type === "LIST_TABS") {
     void (async () => {
@@ -187,6 +215,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         if (action?.type === "get_tab_context") {
           const tab = await resolveTab(action.tabId)
           if (!tab.id) throw new Error("No tab ID")
+          if (!isScriptableUrl(tab.url)) {
+            sendResponse({
+              ok: true,
+              context: { url: tab.url ?? "", title: tab.title ?? "", text: "(Chrome internal page — cannot inspect content)" },
+            })
+            return
+          }
           const result = await chrome.tabs.sendMessage(tab.id, { type: "GET_PAGE_CONTEXT" })
           sendResponse(result)
           return
@@ -195,6 +230,9 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         // All other actions → forward to content script in the target tab
         const tab = await resolveTab(action?.tabId)
         if (!tab.id) throw new Error("No tab ID")
+        if (!isScriptableUrl(tab.url)) {
+          throw new Error(`Cannot interact with ${tab.url} — this is a Chrome internal page. Navigate to a website first.`)
+        }
         const result = await chrome.tabs.sendMessage(tab.id, message)
         sendResponse(result)
       } catch (err) {
@@ -236,6 +274,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       try {
         const tab = await resolveTab(message.tabId)
         if (!tab.id) throw new Error("No tab ID")
+        if (!isScriptableUrl(tab.url)) {
+          sendResponse({
+            ok: true,
+            context: { url: tab.url ?? "", title: tab.title ?? "", text: "(Chrome internal page — cannot inspect content)" },
+          })
+          return
+        }
         const result = await chrome.tabs.sendMessage(tab.id, { type: "GET_PAGE_CONTEXT" })
         sendResponse(result)
       } catch (err) {

@@ -2,7 +2,7 @@
 
 **Let [badlogic's pi](https://pi.dev) take the wheel in your browser.**
 
-![Pi Chrome Operator](docs/screenshot.png?v=2) Summarize pages, fill forms, navigate sites, check mail — all via natural language across all your browser tabs. Save routines for tasks you repeat.
+![Pi Chrome Operator](docs/screenshot.png?v=3) Summarize pages, fill forms, navigate sites, check mail — all via natural language across all your browser tabs. Save routines for tasks you repeat.
 
 ## How it works
 
@@ -23,10 +23,8 @@ Browser actions flow through Pi's native tool system: the LLM decides to call `b
 ## Install
 
 ```bash
-npm install -g @patriceckhart/pi-chrome-operator
+pi install npm:@patriceckhart/pi-chrome-operator
 ```
-
-This installs the `pi-chrome` CLI globally and automatically builds the Chrome extension.
 
 > **Prerequisite:** You need [Pi](https://github.com/mariozechner/pi) installed and configured with at least one API key.
 > ```bash
@@ -54,7 +52,7 @@ pi-chrome start
 
 ### 3. Use it!
 
-Click the Pi icon in Chrome, the side panel opens, chat away.
+Click the Chrome Operator icon in Chrome, the side panel opens, chat away.
 
 ## CLI
 
@@ -106,8 +104,7 @@ Works with Monaco Editor, CKEditor 4/5, ProseMirror/Tiptap, TinyMCE, and content
 Save prompts as routines for one-click execution. Create your own for any repeated task.
 
 ### Settings
-- Configure bridge URL
-- Toggle auto-run for browser actions
+- Configure pi bridge URL
 
 ## Development
 
