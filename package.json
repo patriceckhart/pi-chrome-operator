@@ -3,6 +3,7 @@
   "version": "0.0.12",
   "type": "module",
   "description": "Chat with pi agent to control your browser — summarize pages, fill forms, check mail, and save routines.",
+  "keywords": ["pi-package"],
   "license": "MIT",
   "repository": {
     "type": "git",
